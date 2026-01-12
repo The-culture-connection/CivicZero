@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:civiczero/config/app_theme.dart';
-import 'package:civiczero/views/auth_view.dart';
+import 'package:civiczero/views/enter_view.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +30,7 @@ class CivicZeroApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,
-      home: const AuthView(),
+      home: const EnterView(),
     );
   }
 }

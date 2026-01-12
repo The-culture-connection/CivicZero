@@ -3,7 +3,9 @@ import 'package:civiczero/config/app_theme.dart';
 import 'package:civiczero/views/main_tab_view.dart';
 
 class AuthView extends StatefulWidget {
-  const AuthView({super.key});
+  final bool isLogin;
+  
+  const AuthView({super.key, this.isLogin = true});
 
   @override
   State<AuthView> createState() => _AuthViewState();
@@ -13,8 +15,14 @@ class _AuthViewState extends State<AuthView> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLogin = true;
+  late bool _isLogin;
   bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _isLogin = widget.isLogin;
+  }
 
   @override
   void dispose() {
