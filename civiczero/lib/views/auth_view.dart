@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:civic_zero/config/app_theme.dart';
-import 'package:civic_zero/views/main_tab_view.dart';
+import 'package:civiczero/config/app_theme.dart';
+import 'package:civiczero/views/main_tab_view.dart';
 
 class AuthView extends StatefulWidget {
   const AuthView({super.key});

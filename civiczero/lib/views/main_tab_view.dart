@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:civic_zero/config/app_theme.dart';
-import 'package:civic_zero/views/governments_view.dart';
-import 'package:civic_zero/views/edit_profile_view.dart';
-import 'package:civic_zero/views/town_square_view.dart';
+import 'package:civiczero/config/app_theme.dart';
+import 'package:civiczero/views/governments_view.dart';
+import 'package:civiczero/views/edit_profile_view.dart';
+import 'package:civiczero/views/town_square_view.dart';
 
 class MainTabView extends StatefulWidget {
   const MainTabView({super.key});

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:civic_zero/config/app_theme.dart';
+import 'package:civiczero/config/app_theme.dart';
 
 class GovernmentsView extends StatefulWidget {
   const GovernmentsView({super.key});
