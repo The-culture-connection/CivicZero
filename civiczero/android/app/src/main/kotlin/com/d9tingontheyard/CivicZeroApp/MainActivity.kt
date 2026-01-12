@@ -1,4 +1,4 @@
-package com.example.civiczero
+package com.d9tingontheyard.CivicZeroApp
 
 import io.flutter.embedding.android.FlutterActivity
 

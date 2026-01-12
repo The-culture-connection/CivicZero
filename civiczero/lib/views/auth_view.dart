@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:civiczero/config/app_theme.dart';
 import 'package:civiczero/views/main_tab_view.dart';
+import 'package:civiczero/services/auth_service.dart';
 
 class AuthView extends StatefulWidget {
   final bool isLogin;
@@ -15,8 +16,11 @@ class _AuthViewState extends State<AuthView> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final AuthService _authService = AuthService();
   late bool _isLogin;
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -28,6 +32,7 @@ class _AuthViewState extends State<AuthView> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -37,14 +42,119 @@ class _AuthViewState extends State<AuthView> {
     });
   }
 
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      // Navigate to main tab view
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const MainTabView(),
-        ),
-      );
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      if (_isLogin) {
+        // Sign in
+        await _authService.signInWithEmailPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+      } else {
+        // Sign up
+        await _authService.signUpWithEmailPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          username: _usernameController.text.trim(),
+        );
+      }
+
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const MainTabView(),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _authService.signInWithGoogle();
+      
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const MainTabView(),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _signInWithApple() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _authService.signInWithApple();
+      
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const MainTabView(),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -94,6 +204,59 @@ class _AuthViewState extends State<AuthView> {
                   key: _formKey,
                   child: Column(
                     children: [
+                      // Username Field (only for signup)
+                      if (!_isLogin) ...[
+                        TextFormField(
+                          controller: _usernameController,
+                          style: const TextStyle(color: AppColors.primaryLight),
+                          decoration: InputDecoration(
+                            labelText: 'Username',
+                            labelStyle: TextStyle(
+                              color: AppColors.primaryLight.withOpacity(0.7),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: AppColors.primaryLight.withOpacity(0.3),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(
+                                color: AppColors.primaryLight,
+                                width: 2,
+                              ),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(
+                                color: Colors.red,
+                              ),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(
+                                color: Colors.red,
+                                width: 2,
+                              ),
+                            ),
+                            prefixIcon: Icon(
+                              Icons.person_outline,
+                              color: AppColors.primaryLight.withOpacity(0.7),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (!_isLogin && (value == null || value.isEmpty)) {
+                              return 'Please enter a username';
+                            }
+                            if (!_isLogin && value!.length < 3) {
+                              return 'Username must be at least 3 characters';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       // Email Field
                       TextFormField(
                         controller: _emailController,
@@ -216,24 +379,94 @@ class _AuthViewState extends State<AuthView> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _submit,
+                          onPressed: _isLoading ? null : _submit,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primaryLight,
                             foregroundColor: AppColors.primaryDark,
                           ),
-                          child: Text(
-                            _isLogin ? 'Sign In' : 'Sign Up',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      AppColors.primaryDark,
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  _isLogin ? 'Sign In' : 'Sign Up',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Divider
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Divider(
+                              color: AppColors.primaryLight.withOpacity(0.3),
                             ),
                           ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              'OR',
+                              style: TextStyle(
+                                color: AppColors.primaryLight.withOpacity(0.7),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: AppColors.primaryLight.withOpacity(0.3),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Google Sign In
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _signInWithGoogle,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primaryLight,
+                            side: BorderSide(
+                              color: AppColors.primaryLight.withOpacity(0.5),
+                            ),
+                          ),
+                          icon: const Icon(Icons.g_mobiledata, size: 24),
+                          label: const Text('Continue with Google'),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Apple Sign In
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _signInWithApple,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primaryLight,
+                            side: BorderSide(
+                              color: AppColors.primaryLight.withOpacity(0.5),
+                            ),
+                          ),
+                          icon: const Icon(Icons.apple, size: 24),
+                          label: const Text('Continue with Apple'),
                         ),
                       ),
                       const SizedBox(height: 16),
                       // Toggle Auth Mode
                       TextButton(
-                        onPressed: _toggleAuthMode,
+                        onPressed: _isLoading ? null : _toggleAuthMode,
                         child: Text(
                           _isLogin
                               ? "Don't have an account? Sign Up"

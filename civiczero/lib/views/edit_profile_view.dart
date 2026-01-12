@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:civiczero/config/app_theme.dart';
+import 'package:civiczero/services/auth_service.dart';
+import 'package:civiczero/views/enter_view.dart';
 
 class EditProfileView extends StatefulWidget {
   const EditProfileView({super.key});
@@ -9,6 +11,7 @@ class EditProfileView extends StatefulWidget {
 }
 
 class _EditProfileViewState extends State<EditProfileView> {
+  final AuthService _authService = AuthService();
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController(text: 'John Doe');
   final _emailController = TextEditingController(text: 'john.doe@example.com');
@@ -261,6 +264,55 @@ class _EditProfileViewState extends State<EditProfileView> {
                         },
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Sign Out Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final shouldSignOut = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Sign Out'),
+                          content: const Text('Are you sure you want to sign out?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Sign Out'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (shouldSignOut == true && mounted) {
+                        await _authService.signOut();
+                        if (mounted) {
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (context) => const EnterView(),
+                            ),
+                            (route) => false,
+                          );
+                        }
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                    ),
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Sign Out'),
                   ),
                 ),
                 const SizedBox(height: 24),
