@@ -7,20 +7,37 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:48233867824:android:YOUR_APP_ID_HERE",
+        "mobilesdk_app_id": "1:48233867824:android:8b36d506b3d6b262a5dbf5",
         "android_client_info": {
           "package_name": "com.d9tingontheyard.CivicZeroApp"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "48233867824-tq5c648lr5id2qd82k8t084tpukakeb0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "YOUR_API_KEY_HERE"
+          "current_key": "AIzaSyD_M1xEFSUMWT7ELdbo7E4UTjxjBSQ10eY"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "48233867824-tq5c648lr5id2qd82k8t084tpukakeb0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "48233867824-b9ftthjpgd3ite55hls49e82nu6j3crj.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.d9tingontheyard.CivicZeroApp"
+              }
+            }
+          ]
         }
       }
     }
