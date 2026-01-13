@@ -440,6 +440,19 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
                                   style: const TextStyle(fontSize: 13)),
                               Text('Threshold: ${(gov.lawmakingSOP[type]!['threshold'] as String? ?? 'majority').replaceAll('_', ' ')}',
                                   style: const TextStyle(fontSize: 13)),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Icon(Icons.schedule, size: 14, color: Colors.grey),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Timing: ${_formatLatency(gov.lawmakingSOP[type]!['debateLatency'] as String? ?? 'medium')} debate, '
+                                    '${_formatLatency(gov.lawmakingSOP[type]!['votingLatency'] as String? ?? 'medium')} vote, '
+                                    '${_formatLatency(gov.lawmakingSOP[type]!['executionLatency'] as String? ?? 'medium')} execution',
+                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
                             ],
                           ],
                         ),
@@ -1120,6 +1133,19 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
         return 'Requires public approval';
       default:
         return '';
+    }
+  }
+
+  String _formatLatency(String latency) {
+    switch (latency) {
+      case 'low':
+        return 'fast';
+      case 'medium':
+        return 'medium';
+      case 'high':
+        return 'slow';
+      default:
+        return latency;
     }
   }
 }

@@ -134,6 +134,9 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
       'voteRequired': true,
       'votingBody': 'eligible_voters',
       'threshold': 'simple_majority',
+      'debateLatency': 'medium', // How long debates last
+      'votingLatency': 'medium', // How long voting is open
+      'executionLatency': 'medium', // How quickly changes are implemented
     };
     
     // CRITICAL: governance_change must have higher threshold!
@@ -143,6 +146,9 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
       'voteRequired': true,
       'votingBody': 'eligible_voters',
       'threshold': 'supermajority_66', // Require 2/3 majority for governance changes!
+      'debateLatency': 'high', // Longer debate for constitutional changes
+      'votingLatency': 'high', // Longer voting period
+      'executionLatency': 'low', // Fast execution once passed
     };
   }
 
@@ -1316,6 +1322,56 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
                         setState(() {
                           _lawmakingSOP[type] = _lawmakingSOP[type] ?? {};
                           _lawmakingSOP[type]!['threshold'] = val!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Decision Timing:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: 'Debate Duration'),
+                      value: _lawmakingSOP[type]?['debateLatency'] ?? 'medium',
+                      items: const [
+                        DropdownMenuItem(value: 'low', child: Text('Fast (hours)')),
+                        DropdownMenuItem(value: 'medium', child: Text('Medium (days)')),
+                        DropdownMenuItem(value: 'high', child: Text('Slow (weeks)')),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _lawmakingSOP[type] = _lawmakingSOP[type] ?? {};
+                          _lawmakingSOP[type]!['debateLatency'] = val!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: 'Voting Duration'),
+                      value: _lawmakingSOP[type]?['votingLatency'] ?? 'medium',
+                      items: const [
+                        DropdownMenuItem(value: 'low', child: Text('Fast (hours)')),
+                        DropdownMenuItem(value: 'medium', child: Text('Medium (days)')),
+                        DropdownMenuItem(value: 'high', child: Text('Slow (weeks)')),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _lawmakingSOP[type] = _lawmakingSOP[type] ?? {};
+                          _lawmakingSOP[type]!['votingLatency'] = val!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: 'Execution Speed'),
+                      value: _lawmakingSOP[type]?['executionLatency'] ?? 'medium',
+                      items: const [
+                        DropdownMenuItem(value: 'low', child: Text('Immediate')),
+                        DropdownMenuItem(value: 'medium', child: Text('Normal (days)')),
+                        DropdownMenuItem(value: 'high', child: Text('Delayed (weeks)')),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _lawmakingSOP[type] = _lawmakingSOP[type] ?? {};
+                          _lawmakingSOP[type]!['executionLatency'] = val!;
                         });
                       },
                     ),
