@@ -182,10 +182,14 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
         preambleText = _generatePreamble();
       }
 
+      final creatorUid = _authService.currentUser!.uid;
+      final userData = await _authService.getUserData(creatorUid);
+      final creatorUsername = userData?.username ?? 'Unknown';
+
       final government = GovernmentModel(
         id: '',
         name: _nameController.text.trim(),
-        createdBy: _authService.currentUser!.uid,
+        createdBy: creatorUid, // UID for authority!
         createdAt: DateTime.now(),
         blueprintSeed: _blueprintSeed,
         scope: _scope,
@@ -224,11 +228,15 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
         stressResponses: _stressResponses,
         participationCulture: _participationCulture,
         decisionLatency: _decisionLatency,
-        memberIds: [_authService.currentUser!.uid],
         memberCount: 1,
       );
 
-      await _governmentService.createGovernment(government);
+      // Create government with UID-based founder membership
+      await _governmentService.createGovernment(
+        government,
+        creatorUid,
+        creatorUsername,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

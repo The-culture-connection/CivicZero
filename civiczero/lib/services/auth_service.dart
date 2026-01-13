@@ -164,7 +164,22 @@ class AuthService {
     }
   }
 
-  // Create user document in Firestore
+  // Check if username is available (must be unique!)
+  Future<bool> isUsernameAvailable(String username) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('username', isEqualTo: username.toLowerCase())
+          .limit(1)
+          .get();
+      
+      return querySnapshot.docs.isEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Create user document in Firestore (UID-based with unique username)
   Future<void> _createUserDocument({
     required String uid,
     required String email,
@@ -173,12 +188,20 @@ class AuthService {
     String? photoUrl,
   }) async {
     try {
+      // Check username uniqueness
+      final isAvailable = await isUsernameAvailable(username);
+      if (!isAvailable) {
+        throw 'Username already taken. Please choose another.';
+      }
+      
+      // Create user document keyed by UID (AUTHORITY)
       final userDoc = _firestore.collection('users').doc(uid);
       
       await userDoc.set({
         'uid': uid,
         'email': email,
-        'username': username,
+        'username': username.toLowerCase(), // Store lowercase for consistency
+        'usernameDisplay': username, // Original case for display
         'displayName': displayName,
         'photoUrl': photoUrl,
         'createdAt': FieldValue.serverTimestamp(),
@@ -186,6 +209,19 @@ class AuthService {
       });
     } catch (e) {
       throw 'Failed to create user profile: $e';
+    }
+  }
+
+  // Get username from UID (for display purposes)
+  Future<String> getUsernameFromUid(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (doc.exists) {
+        return doc.data()?['usernameDisplay'] as String? ?? 'Unknown User';
+      }
+      return 'Unknown User';
+    } catch (e) {
+      return 'Unknown User';
     }
   }
 

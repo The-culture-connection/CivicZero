@@ -27,9 +27,10 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
   }
 
   Future<void> _checkMembership() async {
-    final userId = _authService.currentUser?.uid;
-    if (userId != null) {
-      final isMember = await _governmentService.isMember(widget.government.id, userId);
+    final uid = _authService.currentUser?.uid;
+    if (uid != null) {
+      // Check membership by UID (AUTHORITY)
+      final isMember = await _governmentService.isMember(widget.government.id, uid);
       setState(() {
         _isMember = isMember;
       });
@@ -37,8 +38,8 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
   }
 
   Future<void> _toggleMembership() async {
-    final userId = _authService.currentUser?.uid;
-    if (userId == null) return;
+    final uid = _authService.currentUser?.uid;
+    if (uid == null) return;
 
     setState(() {
       _isLoading = true;
@@ -46,7 +47,8 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
 
     try {
       if (_isMember) {
-        await _governmentService.leaveGovernment(widget.government.id, userId);
+        // Leave using UID (AUTHORITY)
+        await _governmentService.leaveGovernment(widget.government.id, uid);
         setState(() {
           _isMember = false;
         });
@@ -56,7 +58,16 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
           );
         }
       } else {
-        await _governmentService.joinGovernment(widget.government.id, userId);
+        // Join using UID + username (UID for authority, username for display)
+        final userData = await _authService.getUserData(uid);
+        final username = userData?.username ?? 'Unknown';
+        
+        await _governmentService.joinGovernment(
+          governmentId: widget.government.id,
+          uid: uid, // UID = AUTHORITY
+          username: username, // Username = DISPLAY
+        );
+        
         setState(() {
           _isMember = true;
         });

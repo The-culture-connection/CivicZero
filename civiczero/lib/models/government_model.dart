@@ -66,8 +66,7 @@ class GovernmentModel {
   final String decisionLatency;
   
   // Additional metadata
-  final int memberCount;
-  final List<String> memberIds;
+  final int memberCount; // Performance cache only - truth is in members subcollection
 
   GovernmentModel({
     required this.id,
@@ -106,7 +105,6 @@ class GovernmentModel {
     required this.participationCulture,
     required this.decisionLatency,
     this.memberCount = 1,
-    this.memberIds = const [],
   });
 
   factory GovernmentModel.fromJson(Map<String, dynamic> json) {
@@ -153,7 +151,6 @@ class GovernmentModel {
       participationCulture: json['participationCulture'] as String? ?? 'balanced',
       decisionLatency: json['decisionLatency'] as String? ?? 'medium',
       memberCount: json['memberCount'] as int? ?? 1,
-      memberIds: List<String>.from(json['memberIds'] as List? ?? []),
     );
   }
 
@@ -195,7 +192,6 @@ class GovernmentModel {
       'participationCulture': participationCulture,
       'decisionLatency': decisionLatency,
       'memberCount': memberCount,
-      'memberIds': memberIds,
     };
   }
 }
