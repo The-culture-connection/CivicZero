@@ -18,7 +18,7 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
   final AuthService _authService = AuthService();
   
   int _currentPage = 0;
-  final int _totalPages = 14; // 0-13 sections (added 5 new)
+  final int _totalPages = 16; // Consolidated and enhanced
   bool _isLoading = false;
 
   // Form data
@@ -66,18 +66,17 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
   // NEW: Custom Institutions
   final List<Map<String, dynamic>> _customInstitutions = [];
   
-  // Section 4: Representation & Elections
-  String _representationModel = 'elected_representatives';
-  final Set<String> _votingEligibility = {};
-  final Set<String> _officeEligibility = {};
-  String _electionMethod = 'majority_vote';
-  final _termLengthController = TextEditingController();
-  bool _termLimits = false;
+  // Section 4: Role System (CONSOLIDATED)
+  final Set<String> _enabledRoles = {'visitor', 'member', 'voter'};
+  final Map<String, Map<String, dynamic>> _rolePowers = {};
+  final Map<String, Map<String, dynamic>> _roleTransitions = {};
+  final Map<String, String> _roleDurations = {};
   
-  // Section 5: Lawmaking
-  final Set<String> _lawProposers = {};
-  String _passageRules = 'simple_majority';
-  final Set<String> _reviewMechanisms = {};
+  // Section 5: Lawmaking SOP (ENHANCED)
+  final Set<String> _proposalTypes = {'new_law'};
+  final Map<String, Map<String, dynamic>> _lawmakingSOP = {};
+  final Map<String, dynamic> _forkRules = {};
+  final Map<String, dynamic> _simulationTriggers = {};
   
   // Section 6: Enforcement
   String _enforcementAuthority = 'central_authority';
@@ -103,11 +102,46 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
   String _decisionLatency = 'medium';
 
   @override
+  void initState() {
+    super.initState();
+    _initializeDefaults();
+  }
+
+  void _initializeDefaults() {
+    // Initialize default role powers
+    for (var role in ['visitor', 'member', 'contributor', 'voter', 'representative', 'moderator', 'founder']) {
+      _rolePowers[role] = {
+        'fork': false,
+        'proposeEvents': false,
+        'proposeLaws': false,
+        'vote': false,
+        'initiateSimulations': false,
+        'beElected': false,
+        'editDocs': 'no',
+      };
+    }
+    
+    // Set some reasonable defaults
+    _rolePowers['member']!['proposeEvents'] = true;
+    _rolePowers['voter']!['vote'] = true;
+    _rolePowers['contributor']!['proposeLaws'] = true;
+    _rolePowers['representative']!['editDocs'] = 'draft';
+    
+    // Initialize default lawmaking SOP
+    _lawmakingSOP['new_law'] = {
+      'debateRequired': 'optional',
+      'debateFormat': 'open_discussion',
+      'voteRequired': true,
+      'votingBody': 'eligible_voters',
+      'threshold': 'simple_majority',
+    };
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     _nameController.dispose();
     _preambleController.dispose();
-    _termLengthController.dispose();
     super.dispose();
   }
 
@@ -165,20 +199,19 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
         citizenObligations: _obligations.toList(),
         branches: _branches.toList(),
         checksAndBalances: _checksAndBalances,
-        representationModel: _representationModel,
-        votingEligibility: _votingEligibility.toList(),
-        officeEligibility: _officeEligibility.toList(),
-        electionMethod: _electionMethod,
-        termLength: _termLengthController.text.trim(),
-        termLimits: _termLimits,
-        lawProposers: _lawProposers.toList(),
-        passageRules: _passageRules,
-        reviewMechanisms: _reviewMechanisms.toList(),
+        enabledRoles: _enabledRoles.toList(),
+        rolePowers: _rolePowers,
+        roleTransitions: _roleTransitions,
+        roleDurations: _roleDurations,
+        proposalTypes: _proposalTypes.toList(),
+        lawmakingSOP: _lawmakingSOP,
+        forkRules: _forkRules,
+        simulationTriggers: _simulationTriggers,
         enforcementAuthority: _enforcementAuthority,
         consequenceTypes: _consequenceTypes.toList(),
         enforcementDiscretion: _enforcementDiscretion,
-        amendmentDifficulty: _amendmentDifficulty,
-        changeTriggers: _changeTriggers.toList(),
+        amendmentDifficulty: _deriveAmendmentDifficulty(),
+        changeTriggers: _changeTriggers.isNotEmpty ? _changeTriggers.toList() : ['public_vote', 'crisis'],
         metrics: {
           'trust': 0.5,
           'stability': 0.5,
@@ -220,6 +253,19 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  String _deriveAmendmentDifficulty() {
+    // Derive from constitutional amendment SOP if configured
+    final constSOP = _lawmakingSOP['constitutional'];
+    if (constSOP != null) {
+      final threshold = constSOP['threshold'] as String? ?? 'simple_majority';
+      if (threshold.contains('75')) return 'difficult';
+      if (threshold.contains('66')) return 'moderate';
+      if (threshold == 'consensus') return 'difficult';
+      return 'moderate';
+    }
+    return 'moderate'; // default
   }
 
   String _generatePreamble() {
@@ -270,11 +316,14 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
                 _buildRightsPage(),
                 _buildStructurePage(),
                 _buildCustomInstitutionPage(),
-                _buildRepresentationPage(),
+                _buildRoleDefinitionsPage(),
+                _buildRolePowersPage(),
+                _buildRoleTransitionsPage(),
                 _buildParticipationCulturePage(),
-                _buildLawmakingPage(),
+                _buildLawmakingSOPPage(),
+                _buildForkRulesPage(),
+                _buildSimulationTriggersPage(),
                 _buildEnforcementPage(),
-                _buildChangePage(),
                 _buildStressTestPage(),
                 _buildMetricsPage(),
               ],
@@ -943,102 +992,397 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
     );
   }
 
-  Widget _buildRepresentationPage() {
+  Widget _buildRoleDefinitionsPage() {
+    final allRoles = ['visitor', 'member', 'contributor', 'voter', 'representative', 'moderator', 'founder'];
     return _buildPageScaffold(
-      title: 'Representation & Elections',
+      title: 'Role Definitions',
       children: [
         const Text(
-          'How are people represented?',
+          'Which roles exist in your government? (Minimum: Visitor + Member)',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 16),
-        _buildRadioOption('Direct participation (everyone votes on laws)', 'direct', _representationModel, (val) => setState(() => _representationModel = val!)),
-        _buildRadioOption('Elected representatives', 'elected_representatives', _representationModel, (val) => setState(() => _representationModel = val!)),
-        _buildRadioOption('Mixed (delegates + direct votes)', 'mixed', _representationModel, (val) => setState(() => _representationModel = val!)),
-        const SizedBox(height: 24),
+        ...allRoles.map((role) => CheckboxListTile(
+          title: Text(role.capitalize()),
+          subtitle: Text(_getRoleDescription(role)),
+          value: _enabledRoles.contains(role),
+          onChanged: (val) {
+            setState(() {
+              if (val == true && !['visitor', 'member'].contains(role)) {
+                _enabledRoles.add(role);
+              } else if (val == false && !['visitor', 'member'].contains(role)) {
+                _enabledRoles.remove(role);
+              }
+            });
+          },
+        )).toList(),
+      ],
+    );
+  }
+
+  String _getRoleDescription(String role) {
+    final descriptions = {
+      'visitor': 'Read-only access',
+      'member': 'Joined participant',
+      'contributor': 'Can write drafts',
+      'voter': 'Meets voting eligibility',
+      'representative': 'Elected/selected leader',
+      'moderator': 'Facilitates discussions',
+      'founder': 'Creator (no permanent authority)',
+    };
+    return descriptions[role] ?? '';
+  }
+
+  Widget _buildRolePowersPage() {
+    return _buildPageScaffold(
+      title: 'Role Powers',
+      children: [
         const Text(
-          'Who can vote?',
+          'Configure what each role can do',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 16),
-        _buildCheckOption('All members', 'all_members', _votingEligibility),
-        _buildCheckOption('Age-restricted', 'age_restricted', _votingEligibility),
-        _buildCheckOption('Contribution-based', 'contribution_based', _votingEligibility),
-        _buildCheckOption('Residency-based', 'residency_based', _votingEligibility),
-        const SizedBox(height: 24),
-        const Text(
-          'Who can run for office?',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 16),
-        _buildCheckOption('All members', 'all_members', _officeEligibility),
-        _buildCheckOption('Age-restricted', 'age_restricted', _officeEligibility),
-        _buildCheckOption('Contribution-based', 'contribution_based', _officeEligibility),
-        _buildCheckOption('Residency-based', 'residency_based', _officeEligibility),
-        const SizedBox(height: 24),
-        const Text(
-          'How are representatives selected?',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 16),
-        _buildRadioOption('Majority vote', 'majority_vote', _electionMethod, (val) => setState(() => _electionMethod = val!)),
-        _buildRadioOption('Ranked choice', 'ranked_choice', _electionMethod, (val) => setState(() => _electionMethod = val!)),
-        _buildRadioOption('Proportional representation', 'proportional', _electionMethod, (val) => setState(() => _electionMethod = val!)),
-        _buildRadioOption('Random selection (sortition)', 'sortition', _electionMethod, (val) => setState(() => _electionMethod = val!)),
-        _buildRadioOption('Appointment', 'appointment', _electionMethod, (val) => setState(() => _electionMethod = val!)),
-        const SizedBox(height: 24),
-        TextField(
-          controller: _termLengthController,
-          decoration: const InputDecoration(
-            labelText: 'Term Length',
-            border: OutlineInputBorder(),
-            hintText: 'e.g., 4 years, indefinite, etc.',
+        ..._enabledRoles.map((role) => Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: ExpansionTile(
+            title: Text(role.capitalize(), style: const TextStyle(fontWeight: FontWeight.bold)),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      title: const Text('Can Fork Government'),
+                      value: _rolePowers[role]?['fork'] ?? false,
+                      onChanged: (val) => setState(() => _rolePowers[role]!['fork'] = val),
+                      dense: true,
+                    ),
+                    SwitchListTile(
+                      title: const Text('Can Propose Events'),
+                      value: _rolePowers[role]?['proposeEvents'] ?? false,
+                      onChanged: (val) => setState(() => _rolePowers[role]!['proposeEvents'] = val),
+                      dense: true,
+                    ),
+                    SwitchListTile(
+                      title: const Text('Can Propose Laws'),
+                      value: _rolePowers[role]?['proposeLaws'] ?? false,
+                      onChanged: (val) => setState(() => _rolePowers[role]!['proposeLaws'] = val),
+                      dense: true,
+                    ),
+                    SwitchListTile(
+                      title: const Text('Can Vote'),
+                      value: _rolePowers[role]?['vote'] ?? false,
+                      onChanged: (val) => setState(() => _rolePowers[role]!['vote'] = val),
+                      dense: true,
+                    ),
+                    SwitchListTile(
+                      title: const Text('Can Initiate Simulations'),
+                      value: _rolePowers[role]?['initiateSimulations'] ?? false,
+                      onChanged: (val) => setState(() => _rolePowers[role]!['initiateSimulations'] = val),
+                      dense: true,
+                    ),
+                    SwitchListTile(
+                      title: const Text('Can Be Elected'),
+                      value: _rolePowers[role]?['beElected'] ?? false,
+                      onChanged: (val) => setState(() => _rolePowers[role]!['beElected'] = val),
+                      dense: true,
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: 'Edit Foundational Documents'),
+                      value: _rolePowers[role]?['editDocs'] ?? 'no',
+                      items: const [
+                        DropdownMenuItem(value: 'no', child: Text('No')),
+                        DropdownMenuItem(value: 'draft', child: Text('Draft Only')),
+                        DropdownMenuItem(value: 'direct', child: Text('Direct Edit')),
+                      ],
+                      onChanged: (val) => setState(() => _rolePowers[role]!['editDocs'] = val!),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+        )).toList(),
+      ],
+    );
+  }
+
+  Widget _buildRoleTransitionsPage() {
+    return _buildPageScaffold(
+      title: 'Role Transitions & Duration',
+      children: [
+        const Text(
+          'How do users gain roles and how long do they last?',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 16),
+        ..._enabledRoles.where((r) => r != 'visitor').map((role) => Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(role.capitalize(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(labelText: 'How to gain this role'),
+                  value: _roleTransitions[role]?['method'] ?? 'automatic',
+                  items: const [
+                    DropdownMenuItem(value: 'automatic', child: Text('Automatic (meets criteria)')),
+                    DropdownMenuItem(value: 'election', child: Text('Election')),
+                    DropdownMenuItem(value: 'appointment', child: Text('Appointment')),
+                    DropdownMenuItem(value: 'sortition', child: Text('Sortition (random)')),
+                    DropdownMenuItem(value: 'invitation', child: Text('Invitation')),
+                    DropdownMenuItem(value: 'public_vote', child: Text('Public Vote')),
+                  ],
+                  onChanged: (val) {
+                    setState(() {
+                      _roleTransitions[role] = {'method': val!};
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(labelText: 'Role duration'),
+                  value: _roleDurations[role] ?? 'permanent',
+                  items: const [
+                    DropdownMenuItem(value: 'permanent', child: Text('Permanent')),
+                    DropdownMenuItem(value: 'fixed_term', child: Text('Fixed Term')),
+                    DropdownMenuItem(value: 'conditional', child: Text('Expires if inactive')),
+                    DropdownMenuItem(value: 'revocable', child: Text('Revocable')),
+                  ],
+                  onChanged: (val) => setState(() => _roleDurations[role] = val!),
+                ),
+              ],
+            ),
+          ),
+        )).toList(),
+      ],
+    );
+  }
+
+  Widget _buildLawmakingSOPPage() {
+    return _buildPageScaffold(
+      title: 'Lawmaking Standard Operating Procedure',
+      children: [
+        const Text(
+          'Define the detailed process for making laws',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 16),
+        const Text('Proposal Types:', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        _buildCheckOption('New Law', 'new_law', _proposalTypes),
+        _buildCheckOption('Law Amendment', 'amendment', _proposalTypes),
+        _buildCheckOption('Law Repeal', 'repeal', _proposalTypes),
+        _buildCheckOption('Constitutional Amendment', 'constitutional', _proposalTypes),
+        _buildCheckOption('Emergency Action', 'emergency', _proposalTypes),
+        const SizedBox(height: 24),
+        ..._proposalTypes.map((type) => Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: ExpansionTile(
+            title: Text('${type.replaceAll('_', ' ').capitalize()} - SOP', style: const TextStyle(fontWeight: FontWeight.bold)),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: 'Debate Required?'),
+                      value: _lawmakingSOP[type]?['debateRequired'] ?? 'optional',
+                      items: const [
+                        DropdownMenuItem(value: 'never', child: Text('Never')),
+                        DropdownMenuItem(value: 'always', child: Text('Always')),
+                        DropdownMenuItem(value: 'optional', child: Text('Optional')),
+                        DropdownMenuItem(value: 'if_challenged', child: Text('Only if challenged')),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _lawmakingSOP[type] = _lawmakingSOP[type] ?? {};
+                          _lawmakingSOP[type]!['debateRequired'] = val!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: 'Debate Format'),
+                      value: _lawmakingSOP[type]?['debateFormat'] ?? 'open_discussion',
+                      items: const [
+                        DropdownMenuItem(value: 'time_boxed', child: Text('Time-boxed')),
+                        DropdownMenuItem(value: 'argument_limited', child: Text('Argument-limited')),
+                        DropdownMenuItem(value: 'open_discussion', child: Text('Open discussion')),
+                        DropdownMenuItem(value: 'moderated', child: Text('Moderated')),
+                        DropdownMenuItem(value: 'expert_gated', child: Text('Expert-gated')),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _lawmakingSOP[type] = _lawmakingSOP[type] ?? {};
+                          _lawmakingSOP[type]!['debateFormat'] = val!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: 'Who Votes?'),
+                      value: _lawmakingSOP[type]?['votingBody'] ?? 'eligible_voters',
+                      items: const [
+                        DropdownMenuItem(value: 'all_members', child: Text('All members')),
+                        DropdownMenuItem(value: 'eligible_voters', child: Text('Eligible voters')),
+                        DropdownMenuItem(value: 'representatives', child: Text('Representatives')),
+                        DropdownMenuItem(value: 'mixed', child: Text('Mixed (public + reps)')),
+                        DropdownMenuItem(value: 'random_panel', child: Text('Random panel')),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _lawmakingSOP[type] = _lawmakingSOP[type] ?? {};
+                          _lawmakingSOP[type]!['votingBody'] = val!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: 'Voting Threshold'),
+                      value: _lawmakingSOP[type]?['threshold'] ?? 'simple_majority',
+                      items: const [
+                        DropdownMenuItem(value: 'simple_majority', child: Text('Simple majority (>50%)')),
+                        DropdownMenuItem(value: 'supermajority_66', child: Text('Supermajority (66%)')),
+                        DropdownMenuItem(value: 'supermajority_75', child: Text('Supermajority (75%)')),
+                        DropdownMenuItem(value: 'consensus', child: Text('Consensus (unanimous)')),
+                        DropdownMenuItem(value: 'quorum_majority', child: Text('Quorum + majority')),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _lawmakingSOP[type] = _lawmakingSOP[type] ?? {};
+                          _lawmakingSOP[type]!['threshold'] = val!;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        )).toList(),
+      ],
+    );
+  }
+
+  Widget _buildForkRulesPage() {
+    return _buildPageScaffold(
+      title: 'Fork Rules',
+      children: [
+        const Text(
+          'When a government fork is proposed, what must happen?',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 16),
         CheckboxListTile(
-          title: const Text('Enforce term limits'),
-          value: _termLimits,
-          onChanged: (val) => setState(() => _termLimits = val ?? false),
+          title: const Text('Mandatory rationale required'),
+          value: _forkRules['rationale_required'] ?? false,
+          onChanged: (val) => setState(() => _forkRules['rationale_required'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('Snapshot selection'),
+          value: _forkRules['snapshot_selection'] ?? false,
+          onChanged: (val) => setState(() => _forkRules['snapshot_selection'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('Debate required'),
+          value: _forkRules['debate_required'] ?? false,
+          onChanged: (val) => setState(() => _forkRules['debate_required'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('Public notice period'),
+          value: _forkRules['notice_period'] ?? false,
+          onChanged: (val) => setState(() => _forkRules['notice_period'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('Final vote required'),
+          value: _forkRules['vote_required'] ?? false,
+          onChanged: (val) => setState(() => _forkRules['vote_required'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('Immediate fork (no vote)'),
+          value: _forkRules['immediate'] ?? false,
+          onChanged: (val) => setState(() => _forkRules['immediate'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('Cooling-off period'),
+          value: _forkRules['cooling_off'] ?? false,
+          onChanged: (val) => setState(() => _forkRules['cooling_off'] = val),
         ),
       ],
     );
   }
 
-  Widget _buildLawmakingPage() {
+  Widget _buildSimulationTriggersPage() {
     return _buildPageScaffold(
-      title: 'Lawmaking Process',
+      title: 'Simulation Triggers',
       children: [
         const Text(
-          'Who can propose laws?',
+          'When should consequence simulations run?',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 16),
-        _buildCheckOption('Any member', 'any_member', _lawProposers),
-        _buildCheckOption('Representatives only', 'representatives', _lawProposers),
-        _buildCheckOption('Executive only', 'executive', _lawProposers),
-        _buildCheckOption('Committees', 'committees', _lawProposers),
-        _buildCheckOption('Threshold-based (signatures)', 'threshold', _lawProposers),
+        CheckboxListTile(
+          title: const Text('After proposal submission'),
+          value: _simulationTriggers['after_submission'] ?? false,
+          onChanged: (val) => setState(() => _simulationTriggers['after_submission'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('After debate'),
+          value: _simulationTriggers['after_debate'] ?? false,
+          onChanged: (val) => setState(() => _simulationTriggers['after_debate'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('Before vote'),
+          value: _simulationTriggers['before_vote'] ?? false,
+          onChanged: (val) => setState(() => _simulationTriggers['before_vote'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('After passage'),
+          value: _simulationTriggers['after_passage'] ?? false,
+          onChanged: (val) => setState(() => _simulationTriggers['after_passage'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('On major changes only'),
+          value: _simulationTriggers['major_only'] ?? false,
+          onChanged: (val) => setState(() => _simulationTriggers['major_only'] = val),
+        ),
         const SizedBox(height: 24),
         const Text(
-          'What is required for a law to pass?',
+          'Who can trigger simulations?',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
-        const SizedBox(height: 16),
-        _buildRadioOption('Simple majority', 'simple_majority', _passageRules, (val) => setState(() => _passageRules = val!)),
-        _buildRadioOption('Supermajority', 'supermajority', _passageRules, (val) => setState(() => _passageRules = val!)),
-        _buildRadioOption('Multiple approvals (branches)', 'multiple_approvals', _passageRules, (val) => setState(() => _passageRules = val!)),
-        _buildRadioOption('Public referendum', 'public_referendum', _passageRules, (val) => setState(() => _passageRules = val!)),
-        const SizedBox(height: 24),
-        const Text(
-          'Can laws be reviewed or blocked?',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        const SizedBox(height: 8),
+        CheckboxListTile(
+          title: const Text('Any member'),
+          value: _simulationTriggers['trigger_any_member'] ?? false,
+          onChanged: (val) => setState(() => _simulationTriggers['trigger_any_member'] = val),
         ),
-        const SizedBox(height: 16),
-        _buildCheckOption('No', 'no', _reviewMechanisms),
-        _buildCheckOption('By courts', 'courts', _reviewMechanisms),
-        _buildCheckOption('By executive', 'executive', _reviewMechanisms),
-        _buildCheckOption('By public vote', 'public_vote', _reviewMechanisms),
+        CheckboxListTile(
+          title: const Text('Contributors'),
+          value: _simulationTriggers['trigger_contributors'] ?? false,
+          onChanged: (val) => setState(() => _simulationTriggers['trigger_contributors'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('Representatives'),
+          value: _simulationTriggers['trigger_representatives'] ?? false,
+          onChanged: (val) => setState(() => _simulationTriggers['trigger_representatives'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('Moderators'),
+          value: _simulationTriggers['trigger_moderators'] ?? false,
+          onChanged: (val) => setState(() => _simulationTriggers['trigger_moderators'] = val),
+        ),
+        CheckboxListTile(
+          title: const Text('Automatic only'),
+          value: _simulationTriggers['automatic_only'] ?? false,
+          onChanged: (val) => setState(() => _simulationTriggers['automatic_only'] = val),
+        ),
       ],
     );
   }

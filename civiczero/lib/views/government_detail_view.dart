@@ -238,21 +238,91 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
                     _buildInfoRow('Checks & Balances', gov.checksAndBalances.replaceAll('_', ' ').capitalize()),
                   ]),
                   const SizedBox(height: 16),
-                  _buildSection('Representation & Elections', [
-                    _buildInfoRow('Representation Model', gov.representationModel.replaceAll('_', ' ').capitalize()),
-                    _buildInfoRow('Voting Eligibility', gov.votingEligibility.join(', ')),
-                    _buildInfoRow('Office Eligibility', gov.officeEligibility.join(', ')),
-                    _buildInfoRow('Election Method', gov.electionMethod.replaceAll('_', ' ').capitalize()),
-                    _buildInfoRow('Term Length', gov.termLength),
-                    _buildInfoRow('Term Limits', gov.termLimits ? 'Yes' : 'No'),
+                  _buildSection('Role System', [
+                    const Text('Enabled Roles:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: gov.enabledRoles.map((role) => Chip(
+                        label: Text(role.capitalize()),
+                        backgroundColor: AppColors.primaryDark.withOpacity(0.1),
+                      )).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Role Powers:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    ...gov.rolePowers.entries.where((e) => gov.enabledRoles.contains(e.key)).map((entry) => Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      color: Colors.blue.shade50,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(entry.key.capitalize(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            Text(_formatRolePowers(entry.value), style: const TextStyle(fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    )).toList(),
                   ]),
                   const SizedBox(height: 16),
-                  _buildSection('Lawmaking Process', [
-                    _buildInfoRow('Who Can Propose Laws', gov.lawProposers.join(', ')),
-                    _buildInfoRow('Passage Requirements', gov.passageRules.replaceAll('_', ' ').capitalize()),
-                    _buildInfoRow('Review Mechanisms', gov.reviewMechanisms.join(', ')),
+                  _buildSection('Lawmaking Procedures', [
+                    const Text('Proposal Types:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    ...gov.proposalTypes.map((type) => Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(type.replaceAll('_', ' ').capitalize(), 
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                            const SizedBox(height: 8),
+                            if (gov.lawmakingSOP[type] != null) ...[
+                              Text('Debate: ${(gov.lawmakingSOP[type]!['debateRequired'] as String? ?? 'optional').replaceAll('_', ' ')}',
+                                  style: const TextStyle(fontSize: 13)),
+                              Text('Format: ${(gov.lawmakingSOP[type]!['debateFormat'] as String? ?? 'open').replaceAll('_', ' ')}',
+                                  style: const TextStyle(fontSize: 13)),
+                              Text('Voting Body: ${(gov.lawmakingSOP[type]!['votingBody'] as String? ?? 'voters').replaceAll('_', ' ')}',
+                                  style: const TextStyle(fontSize: 13)),
+                              Text('Threshold: ${(gov.lawmakingSOP[type]!['threshold'] as String? ?? 'majority').replaceAll('_', ' ')}',
+                                  style: const TextStyle(fontSize: 13)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    )).toList(),
                   ]),
                   const SizedBox(height: 16),
+                  if (gov.forkRules.isNotEmpty && gov.forkRules.values.any((v) => v == true)) ...[
+                    _buildSection('Fork Rules', [
+                      ...gov.forkRules.entries.where((e) => e.value == true).map((entry) => Row(
+                        children: [
+                          const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                          const SizedBox(width: 8),
+                          Text(entry.key.replaceAll('_', ' ').capitalize(), style: const TextStyle(fontSize: 14)),
+                        ],
+                      )).toList(),
+                    ]),
+                    const SizedBox(height: 16),
+                  ],
+                  if (gov.simulationTriggers.isNotEmpty && gov.simulationTriggers.values.any((v) => v == true)) ...[
+                    _buildSection('Simulation Triggers', [
+                      ...gov.simulationTriggers.entries.where((e) => e.value == true).map((entry) => Row(
+                        children: [
+                          const Icon(Icons.analytics, size: 16, color: AppColors.primaryDark),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(entry.key.replaceAll('_', ' ').capitalize(), style: const TextStyle(fontSize: 14)),
+                          ),
+                        ],
+                      )).toList(),
+                    ]),
+                    const SizedBox(height: 16),
+                  ],
                   _buildSection('Enforcement & Consequences', [
                     _buildInfoRow('Enforcement Authority', gov.enforcementAuthority.replaceAll('_', ' ').capitalize()),
                     _buildInfoRow('Consequence Types', gov.consequenceTypes.join(', ')),
@@ -576,5 +646,17 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
         ],
       ),
     );
+  }
+
+  String _formatRolePowers(Map<String, dynamic> powers) {
+    final activePowers = <String>[];
+    if (powers['fork'] == true) activePowers.add('Fork');
+    if (powers['proposeEvents'] == true) activePowers.add('Propose Events');
+    if (powers['proposeLaws'] == true) activePowers.add('Propose Laws');
+    if (powers['vote'] == true) activePowers.add('Vote');
+    if (powers['initiateSimulations'] == true) activePowers.add('Simulations');
+    if (powers['beElected'] == true) activePowers.add('Be Elected');
+    if (powers['editDocs'] != 'no') activePowers.add('Edit Docs (${powers['editDocs']})');
+    return activePowers.isEmpty ? 'No special powers' : activePowers.join(', ');
   }
 }

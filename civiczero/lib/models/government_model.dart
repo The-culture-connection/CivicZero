@@ -24,18 +24,17 @@ class GovernmentModel {
   final List<String> branches;
   final String checksAndBalances;
   
-  // Section 4: Representation & Elections
-  final String representationModel;
-  final List<String> votingEligibility;
-  final List<String> officeEligibility;
-  final String electionMethod;
-  final String termLength;
-  final bool termLimits;
+  // Section 4: Role System (CONSOLIDATED from Representation & Elections)
+  final List<String> enabledRoles;
+  final Map<String, Map<String, dynamic>> rolePowers; // role -> {power -> config}
+  final Map<String, Map<String, dynamic>> roleTransitions; // from_role -> {to_role -> method}
+  final Map<String, String> roleDurations; // role -> duration_type
   
-  // Section 5: Lawmaking
-  final List<String> lawProposers;
-  final String passageRules;
-  final List<String> reviewMechanisms;
+  // Section 5: Lawmaking SOP (ENHANCED)
+  final List<String> proposalTypes;
+  final Map<String, Map<String, dynamic>> lawmakingSOP; // proposal_type -> {debate, vote, threshold, etc}
+  final Map<String, dynamic> forkRules;
+  final Map<String, dynamic> simulationTriggers;
   
   // Section 6: Enforcement
   final String enforcementAuthority;
@@ -85,15 +84,14 @@ class GovernmentModel {
     required this.citizenObligations,
     required this.branches,
     required this.checksAndBalances,
-    required this.representationModel,
-    required this.votingEligibility,
-    required this.officeEligibility,
-    required this.electionMethod,
-    required this.termLength,
-    required this.termLimits,
-    required this.lawProposers,
-    required this.passageRules,
-    required this.reviewMechanisms,
+    required this.enabledRoles,
+    required this.rolePowers,
+    required this.roleTransitions,
+    required this.roleDurations,
+    required this.proposalTypes,
+    required this.lawmakingSOP,
+    required this.forkRules,
+    required this.simulationTriggers,
     required this.enforcementAuthority,
     required this.consequenceTypes,
     required this.enforcementDiscretion,
@@ -127,15 +125,20 @@ class GovernmentModel {
       citizenObligations: List<String>.from(json['citizenObligations'] as List),
       branches: List<String>.from(json['branches'] as List),
       checksAndBalances: json['checksAndBalances'] as String,
-      representationModel: json['representationModel'] as String,
-      votingEligibility: List<String>.from(json['votingEligibility'] as List),
-      officeEligibility: List<String>.from(json['officeEligibility'] as List),
-      electionMethod: json['electionMethod'] as String,
-      termLength: json['termLength'] as String,
-      termLimits: json['termLimits'] as bool,
-      lawProposers: List<String>.from(json['lawProposers'] as List),
-      passageRules: json['passageRules'] as String,
-      reviewMechanisms: List<String>.from(json['reviewMechanisms'] as List),
+      enabledRoles: List<String>.from(json['enabledRoles'] as List? ?? ['visitor', 'member']),
+      rolePowers: Map<String, Map<String, dynamic>>.from(
+        (json['rolePowers'] as Map? ?? {}).map((k, v) => MapEntry(k.toString(), Map<String, dynamic>.from(v as Map)))
+      ),
+      roleTransitions: Map<String, Map<String, dynamic>>.from(
+        (json['roleTransitions'] as Map? ?? {}).map((k, v) => MapEntry(k.toString(), Map<String, dynamic>.from(v as Map)))
+      ),
+      roleDurations: Map<String, String>.from(json['roleDurations'] as Map? ?? {}),
+      proposalTypes: List<String>.from(json['proposalTypes'] as List? ?? ['new_law']),
+      lawmakingSOP: Map<String, Map<String, dynamic>>.from(
+        (json['lawmakingSOP'] as Map? ?? {}).map((k, v) => MapEntry(k.toString(), Map<String, dynamic>.from(v as Map)))
+      ),
+      forkRules: Map<String, dynamic>.from(json['forkRules'] as Map? ?? {}),
+      simulationTriggers: Map<String, dynamic>.from(json['simulationTriggers'] as Map? ?? {}),
       enforcementAuthority: json['enforcementAuthority'] as String,
       consequenceTypes: List<String>.from(json['consequenceTypes'] as List),
       enforcementDiscretion: json['enforcementDiscretion'] as String,
@@ -170,15 +173,14 @@ class GovernmentModel {
       'citizenObligations': citizenObligations,
       'branches': branches,
       'checksAndBalances': checksAndBalances,
-      'representationModel': representationModel,
-      'votingEligibility': votingEligibility,
-      'officeEligibility': officeEligibility,
-      'electionMethod': electionMethod,
-      'termLength': termLength,
-      'termLimits': termLimits,
-      'lawProposers': lawProposers,
-      'passageRules': passageRules,
-      'reviewMechanisms': reviewMechanisms,
+      'enabledRoles': enabledRoles,
+      'rolePowers': rolePowers,
+      'roleTransitions': roleTransitions,
+      'roleDurations': roleDurations,
+      'proposalTypes': proposalTypes,
+      'lawmakingSOP': lawmakingSOP,
+      'forkRules': forkRules,
+      'simulationTriggers': simulationTriggers,
       'enforcementAuthority': enforcementAuthority,
       'consequenceTypes': consequenceTypes,
       'enforcementDiscretion': enforcementDiscretion,
