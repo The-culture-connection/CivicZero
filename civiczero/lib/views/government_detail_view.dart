@@ -379,18 +379,18 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
                     ...gov.principles.entries.map((e) => 
                       _buildProgressRow(e.key.replaceAll('_', ' ').capitalize(), e.value)
                     ).toList(),
-                  ]),
+                  ], editTarget: 'purpose_principles'),
                   const SizedBox(height: 16),
                   _buildSection('Rights & Obligations', [
                     _buildInfoRow('Recognized Rights', gov.rightsCategories.join(', ')),
                     _buildInfoRow('Rights Can Be Limited By', gov.rightsLimits.join(', ')),
                     _buildInfoRow('Citizen Obligations', gov.citizenObligations.join(', ')),
-                  ]),
+                  ], editTarget: 'rights'),
                   const SizedBox(height: 16),
                   _buildSection('Government Structure', [
                     _buildInfoRow('Branches', gov.branches.join(', ')),
                     _buildInfoRow('Checks & Balances', gov.checksAndBalances.replaceAll('_', ' ').capitalize()),
-                  ]),
+                  ], editTarget: 'structure'),
                   const SizedBox(height: 16),
                   _buildSection('Role System', [
                     const Text('Enabled Roles:', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -420,7 +420,7 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
                         ),
                       ),
                     )).toList(),
-                  ]),
+                  ], editTarget: 'role_system'),
                   const SizedBox(height: 16),
                   _buildSection('Lawmaking Procedures', [
                     const Text('Proposal Types:', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -647,6 +647,42 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
                     ),
                   ),
                 ),
+                // Pending proposals badge
+                if (editTarget != null)
+                  FutureBuilder<int>(
+                    future: _proposalService.getPendingProposalsForSection(
+                      widget.government.id,
+                      editTarget,
+                    ),
+                    builder: (context, snapshot) {
+                      final count = snapshot.data ?? 0;
+                      if (count == 0) return const SizedBox.shrink();
+                      
+                      return Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.pending_actions, size: 14, color: Colors.white),
+                            const SizedBox(width: 4),
+                            Text(
+                              '$count',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 if (editTarget != null && canPropose)
                   IconButton(
                     icon: const Icon(Icons.edit, size: 20),

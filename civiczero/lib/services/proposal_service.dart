@@ -299,8 +299,134 @@ class ProposalService {
           .collection('proposals')
           .doc(proposalId)
           .update({field: increment});
+
+      // Check if vote should close and tally results
+      await _checkAndTallyVote(governmentId, proposalId);
     } catch (e) {
       throw 'Failed to cast vote: $e';
+    }
+  }
+
+  /// Check if voting is complete and tally results
+  Future<void> _checkAndTallyVote(String governmentId, String proposalId) async {
+    try {
+      final proposalDoc = await _firestore
+          .collection('Governments')
+          .doc(governmentId)
+          .collection('proposals')
+          .doc(proposalId)
+          .get();
+
+      if (!proposalDoc.exists) return;
+
+      final proposal = ProposalModel.fromJson({
+        ...proposalDoc.data()!,
+        'id': proposalDoc.id,
+      });
+
+      // Check if voting period ended
+      if (proposal.votingEnds != null && DateTime.now().isAfter(proposal.votingEnds!)) {
+        await _tallyAndExecute(governmentId, proposal);
+      }
+    } catch (e) {
+      // Silent fail for now
+    }
+  }
+
+  /// Tally votes and determine if proposal passed
+  Future<void> _tallyAndExecute(String governmentId, ProposalModel proposal) async {
+    if (proposal.status != 'voting') return;
+
+    final totalVotes = proposal.votesFor + proposal.votesAgainst + proposal.votesAbstain;
+    if (totalVotes == 0) {
+      // No votes, reject
+      await updateStatus(governmentId, proposal.id, 'rejected');
+      return;
+    }
+
+    // Calculate if threshold met based on SOP
+    final threshold = proposal.sopSnapshot['threshold'] as String? ?? 'simple_majority';
+    final votesFor = proposal.votesFor;
+    final votesAgainst = proposal.votesAgainst;
+    
+    bool passed = false;
+    switch (threshold) {
+      case 'simple_majority':
+        passed = votesFor > votesAgainst;
+        break;
+      case 'supermajority_66':
+        passed = totalVotes > 0 && (votesFor / totalVotes) >= 0.66;
+        break;
+      case 'supermajority_75':
+        passed = totalVotes > 0 && (votesFor / totalVotes) >= 0.75;
+        break;
+      case 'consensus':
+        passed = votesAgainst == 0 && votesFor > 0;
+        break;
+      case 'quorum_majority':
+        // Simple implementation: requires majority
+        passed = votesFor > votesAgainst;
+        break;
+      default:
+        passed = votesFor > votesAgainst;
+    }
+
+    if (passed) {
+      await updateStatus(governmentId, proposal.id, 'passed');
+      // Auto-execute governance changes
+      if (proposal.type == 'governance_change' || proposal.changes.isNotEmpty) {
+        await executeGovernanceChange(
+          governmentId: governmentId,
+          proposalId: proposal.id,
+          executorUid: 'system', // System auto-execution
+        );
+      } else {
+        await updateStatus(governmentId, proposal.id, 'executed');
+      }
+    } else {
+      await updateStatus(governmentId, proposal.id, 'rejected');
+    }
+  }
+
+  /// Check voting status on all active proposals (background job)
+  Future<void> checkVotingDeadlines(String governmentId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('Governments')
+          .doc(governmentId)
+          .collection('proposals')
+          .where('status', isEqualTo: 'voting')
+          .get();
+
+      final now = DateTime.now();
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final votingEnds = data['votingEnds'] as Timestamp?;
+        
+        if (votingEnds != null && now.isAfter(votingEnds.toDate())) {
+          final proposal = ProposalModel.fromJson({...data, 'id': doc.id});
+          await _tallyAndExecute(governmentId, proposal);
+        }
+      }
+    } catch (e) {
+      // Silent fail
+    }
+  }
+
+  /// Get pending proposals for a specific section/category
+  Future<int> getPendingProposalsForSection(String governmentId, String section) async {
+    try {
+      final snapshot = await _firestore
+          .collection('Governments')
+          .doc(governmentId)
+          .collection('proposals')
+          .where('category', isEqualTo: section)
+          .where('status', whereIn: ['submitted', 'debating', 'voting'])
+          .get();
+      
+      return snapshot.docs.length;
+    } catch (e) {
+      return 0;
     }
   }
 
