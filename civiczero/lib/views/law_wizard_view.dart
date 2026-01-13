@@ -91,7 +91,80 @@ class _LawWizardViewState extends State<LawWizardView> {
 
   @override
   Widget build(BuildContext context) {
-    final sop = widget.government.lawmakingSOP['new_law'] ?? {};
+    // Check if proposal type is enabled in this government
+    if (!widget.government.proposalTypes.contains('new_law')) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Propose New Law'),
+          backgroundColor: AppColors.primaryDark,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.block, size: 80, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                const Text(
+                  'Law Proposals Not Enabled',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This government does not allow law proposals.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Get SOP configured for this government
+    final sop = widget.government.lawmakingSOP['new_law'];
+    if (sop == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Propose New Law'),
+          backgroundColor: AppColors.primaryDark,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.warning, size: 80, color: Colors.orange[400]),
+                const SizedBox(height: 16),
+                const Text(
+                  'SOP Not Configured',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This government has not configured lawmaking procedures for new laws.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -190,10 +263,16 @@ class _LawWizardViewState extends State<LawWizardView> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _buildProcessStep('Debate', sop['debateRequired'] == 'always' ? 'Required' : 'Optional'),
-                    _buildProcessStep('Vote', sop['voteRequired'] == true ? 'Required' : 'Optional'),
-                    _buildProcessStep('Threshold', (sop['threshold'] as String? ?? 'simple_majority').replaceAll('_', ' ')),
-                    _buildProcessStep('Voting Body', (sop['votingBody'] as String? ?? 'all_members').replaceAll('_', ' ')),
+                    _buildProcessStep('Debate', _getDebateRequirement(sop)),
+                    _buildProcessStep('Vote', sop['voteRequired'] == true ? 'Required' : 'Not Required'),
+                    if (sop['voteRequired'] == true) ...[
+                      _buildProcessStep('Threshold', (sop['threshold'] as String? ?? 'simple_majority').replaceAll('_', ' ')),
+                      _buildProcessStep('Voting Body', (sop['votingBody'] as String? ?? 'all_members').replaceAll('_', ' ')),
+                      _buildProcessStep('Voting Time', _getLatencyDisplay(sop['votingLatency'] as String? ?? 'medium')),
+                    ],
+                    if (sop['debateRequired'] != 'never')
+                      _buildProcessStep('Debate Time', _getLatencyDisplay(sop['debateLatency'] as String? ?? 'medium')),
+                    _buildProcessStep('Execution', _getLatencyDisplay(sop['executionLatency'] as String? ?? 'medium')),
                   ],
                 ),
               ),
@@ -223,11 +302,40 @@ class _LawWizardViewState extends State<LawWizardView> {
         children: [
           const Icon(Icons.check_circle, size: 16, color: Colors.green),
           const SizedBox(width: 8),
-          Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           const SizedBox(width: 4),
-          Expanded(child: Text(value.capitalize())),
+          Expanded(child: Text(value.capitalize(), style: const TextStyle(fontSize: 13))),
         ],
       ),
     );
+  }
+
+  String _getDebateRequirement(Map<String, dynamic> sop) {
+    final required = sop['debateRequired'] as String? ?? 'optional';
+    switch (required) {
+      case 'always':
+        return 'Required';
+      case 'never':
+        return 'Not Allowed';
+      case 'optional':
+        return 'Optional';
+      case 'if_challenged':
+        return 'If Challenged';
+      default:
+        return required.capitalize();
+    }
+  }
+
+  String _getLatencyDisplay(String latency) {
+    switch (latency) {
+      case 'low':
+        return 'Fast (hours-days)';
+      case 'medium':
+        return 'Medium (days-week)';
+      case 'high':
+        return 'Slow (weeks-month)';
+      default:
+        return latency;
+    }
   }
 }

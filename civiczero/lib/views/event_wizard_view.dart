@@ -52,7 +52,12 @@ class _EventWizardViewState extends State<EventWizardView> {
       final uid = _authService.currentUser!.uid;
       final userData = await _authService.getUserData(uid);
       final username = userData?.username ?? 'Unknown';
-      final sop = widget.government.lawmakingSOP['event'] ?? {};
+      
+      // Use government's configured SOP for events
+      final sop = widget.government.lawmakingSOP['event'];
+      if (sop == null) {
+        throw 'Event SOP not configured in this government';
+      }
 
       final eventDetails = {
         'type': _eventType,
@@ -77,8 +82,12 @@ class _EventWizardViewState extends State<EventWizardView> {
         voteDurationHours: 0, // Events auto-approve (no vote required by default)
       );
 
-      // If no vote required, execute immediately
-      if (sop['voteRequired'] != true) {
+      // Follow government's SOP configuration
+      if (sop['voteRequired'] == true) {
+        // Start voting if SOP requires it
+        await _proposalService.startVoting(widget.government.id, proposalId, 24);
+      } else {
+        // Execute immediately if no vote required by SOP
         await _proposalService.updateStatus(widget.government.id, proposalId, 'executed');
       }
 
@@ -101,6 +110,45 @@ class _EventWizardViewState extends State<EventWizardView> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if event proposals are enabled
+    if (!widget.government.proposalTypes.contains('event')) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Propose Event'),
+          backgroundColor: AppColors.primaryDark,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.block, size: 80, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                const Text(
+                  'Event Proposals Not Enabled',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This government does not allow event proposals.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final sop = widget.government.lawmakingSOP['event'];
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Propose Event'),

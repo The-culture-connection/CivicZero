@@ -561,7 +561,55 @@ class _ProposeAmendmentViewState extends State<ProposeAmendmentView> {
   }
 
   Widget _buildStep3PreviewSubmit() {
-    final sop = widget.government.lawmakingSOP[widget.proposalType] ?? {};
+    // CRITICAL: Read SOP from government's configuration
+    if (!widget.government.proposalTypes.contains(widget.proposalType)) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 80, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                'Proposal Type Not Enabled',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'This government does not allow ${widget.proposalType} proposals.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final sop = widget.government.lawmakingSOP[widget.proposalType];
+    if (sop == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.warning, size: 80, color: Colors.orange),
+              const SizedBox(height: 16),
+              const Text(
+                'SOP Not Configured',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'This government has not configured procedures for ${widget.proposalType}.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -658,10 +706,18 @@ class _ProposeAmendmentViewState extends State<ProposeAmendmentView> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _buildProcessStep('Debate', sop['debateRequired'] == 'always' ? 'Required' : 'Optional'),
-                  _buildProcessStep('Vote', sop['voteRequired'] == true ? 'Required' : 'Optional'),
-                  _buildProcessStep('Threshold', (sop['threshold'] as String? ?? 'simple_majority').replaceAll('_', ' ')),
-                  _buildProcessStep('Voting Body', (sop['votingBody'] as String? ?? 'all_members').replaceAll('_', ' ')),
+                  _buildProcessStep('Debate', _getDebateText(sop['debateRequired'] as String? ?? 'optional')),
+                  if (sop['debateRequired'] != 'never')
+                    _buildProcessStep('Debate Format', (sop['debateFormat'] as String? ?? 'open').replaceAll('_', ' ')),
+                  _buildProcessStep('Vote', sop['voteRequired'] == true ? 'Required' : 'Not Required'),
+                  if (sop['voteRequired'] == true) ...[
+                    _buildProcessStep('Voting Body', (sop['votingBody'] as String? ?? 'all_members').replaceAll('_', ' ')),
+                    _buildProcessStep('Threshold', (sop['threshold'] as String? ?? 'simple_majority').replaceAll('_', ' ').toUpperCase()),
+                    _buildProcessStep('Voting Time', _getLatencyText(sop['votingLatency'] as String? ?? 'medium')),
+                  ],
+                  if (sop['debateRequired'] != 'never')
+                    _buildProcessStep('Debate Time', _getLatencyText(sop['debateLatency'] as String? ?? 'medium')),
+                  _buildProcessStep('Execution', _getLatencyText(sop['executionLatency'] as String? ?? 'medium')),
                   if (widget.proposalType == 'governance_change')
                     Container(
                       margin: const EdgeInsets.only(top: 8),
@@ -699,11 +755,39 @@ class _ProposeAmendmentViewState extends State<ProposeAmendmentView> {
         children: [
           const Icon(Icons.check_circle, size: 16, color: Colors.green),
           const SizedBox(width: 8),
-          Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           const SizedBox(width: 4),
-          Expanded(child: Text(value.capitalize())),
+          Expanded(child: Text(value.capitalize(), style: const TextStyle(fontSize: 13))),
         ],
       ),
     );
+  }
+
+  String _getDebateText(String requirement) {
+    switch (requirement) {
+      case 'always':
+        return 'Required';
+      case 'never':
+        return 'Not Allowed';
+      case 'optional':
+        return 'Optional';
+      case 'if_challenged':
+        return 'If Challenged';
+      default:
+        return requirement.capitalize();
+    }
+  }
+
+  String _getLatencyText(String latency) {
+    switch (latency) {
+      case 'low':
+        return 'Fast (hours-days)';
+      case 'medium':
+        return 'Medium (days-week)';
+      case 'high':
+        return 'Slow (weeks-month)';
+      default:
+        return latency;
+    }
   }
 }
