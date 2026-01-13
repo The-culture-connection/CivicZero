@@ -14,6 +14,9 @@ import 'package:civiczero/views/law_wizard_view.dart';
 import 'package:civiczero/views/event_wizard_view.dart';
 import 'package:civiczero/views/fork_wizard_view.dart';
 import 'package:civiczero/views/simulation_launch_view.dart';
+import 'package:civiczero/views/proposal_detail_view.dart';
+import 'package:civiczero/models/proposal_model.dart';
+import 'package:civiczero/constants/proposal_constants.dart';
 
 class GovernmentDetailView extends StatefulWidget {
   final GovernmentModel government;
@@ -272,61 +275,92 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
                 ),
               ),
             ],
-            // Proposals Summary Card
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ProposalsView(government: gov),
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryDark.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.description, color: AppColors.primaryDark),
-                        ),
-                        const SizedBox(width: 16),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+            // Pending Actions Section (Real-time)
+            StreamBuilder<List<ProposalModel>>(
+              stream: _proposalService.getProposals(gov.id),
+              builder: (context, snapshot) {
+                final allProposals = snapshot.data ?? [];
+                final pendingProposals = allProposals.where((p) => 
+                  ProposalStatus.activeStatuses.contains(p.status) || 
+                  ProposalStatus.pendingExecutionStatuses.contains(p.status)
+                ).toList();
+
+                if (pendingProposals.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Card(
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Text(
-                                'Proposals',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.pending_actions, color: Colors.orange),
+                              ),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text(
+                                  'Pending Actions',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
-                              Text(
-                                'View active proposals and vote',
-                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${pendingProposals.length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                        const Icon(Icons.chevron_right, color: Colors.grey),
-                      ],
+                          const SizedBox(height: 16),
+                          ...pendingProposals.take(3).map((proposal) => 
+                            _buildPendingActionCard(proposal)
+                          ).toList(),
+                          if (pendingProposals.length > 3) ...[
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProposalsView(government: gov),
+                                  ),
+                                );
+                              },
+                              child: Text('View all ${pendingProposals.length} proposals'),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             // Sections
@@ -1199,6 +1233,93 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
         return 'slow';
       default:
         return latency;
+    }
+  }
+
+  Widget _buildPendingActionCard(ProposalModel proposal) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: Colors.orange.shade50,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProposalDetailView(
+                government: widget.government,
+                proposal: proposal,
+              ),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getStatusColorForProposal(proposal.status),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      ProposalStatus.getDisplayName(proposal.status),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    ProposalType.getDisplayName(proposal.type),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                proposal.title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                ProposalStatus.getNextStep(proposal.status),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade700,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColorForProposal(String status) {
+    switch (status) {
+      case ProposalStatus.voting:
+        return Colors.purple;
+      case ProposalStatus.passed:
+        return Colors.green;
+      case ProposalStatus.debating:
+        return Colors.orange;
+      default:
+        return Colors.blue;
     }
   }
 }

@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:civiczero/models/proposal_model.dart';
 import 'package:civiczero/models/government_model.dart';
+import 'package:civiczero/models/law_model.dart';
+import 'package:civiczero/models/event_model.dart';
+import 'package:civiczero/models/government_version_model.dart';
+import 'package:civiczero/constants/proposal_constants.dart';
 
 /// Proposal Service - Manages proposals lifecycle
 /// CRITICAL: All governance changes must go through proposals!
@@ -198,7 +202,40 @@ class ProposalService {
         }
       }
 
-      // Update government document
+      // Create version snapshot BEFORE changes
+      final currentVersions = await _firestore
+          .collection('Governments')
+          .doc(governmentId)
+          .collection('versions')
+          .orderBy('versionNumber', descending: true)
+          .limit(1)
+          .get();
+
+      final nextVersionNumber = currentVersions.docs.isEmpty 
+          ? 1 
+          : (currentVersions.docs.first.data()['versionNumber'] as int) + 1;
+
+      final version = GovernmentVersionModel(
+        id: '',
+        governmentId: governmentId,
+        versionNumber: nextVersionNumber,
+        createdAt: DateTime.now(),
+        createdBy: executorUid,
+        proposalId: proposalId,
+        snapshot: govData,
+        changesSummary: proposal.changes.map((c) => '${c.op} ${c.path}').toList(),
+      );
+
+      final versionRef = await _firestore
+          .collection('Governments')
+          .doc(governmentId)
+          .collection('versions')
+          .add(version.toJson());
+
+      // Update government document with changes and version pointer
+      updates['currentVersionId'] = versionRef.id;
+      updates['versionNumber'] = nextVersionNumber;
+      
       await _firestore.collection('Governments').doc(governmentId).update(updates);
 
       // Mark proposal as executed
@@ -208,9 +245,10 @@ class ProposalService {
           .collection('proposals')
           .doc(proposalId)
           .update({
-        'status': 'executed',
-        'executedAt': FieldValue.serverTimestamp(),
-        'executedBy': executorUid,
+        'status': ProposalStatus.executed,
+        'execution.executedAt': FieldValue.serverTimestamp(),
+        'execution.executedBy': executorUid,
+        'execution.resultRef': versionRef.id,
       });
 
       // Create audit event
@@ -221,6 +259,8 @@ class ProposalService {
           .add({
         'type': 'governance_change_executed',
         'proposalId': proposalId,
+        'versionId': versionRef.id,
+        'versionNumber': nextVersionNumber,
         'executedBy': executorUid,
         'timestamp': FieldValue.serverTimestamp(),
         'changes': proposal.changes.map((c) => c.toJson()).toList(),
@@ -372,20 +412,117 @@ class ProposalService {
     }
 
     if (passed) {
-      await updateStatus(governmentId, proposal.id, 'passed');
-      // Auto-execute governance changes
-      if (proposal.type == 'governance_change' || proposal.changes.isNotEmpty) {
+      await updateStatus(governmentId, proposal.id, ProposalStatus.passed);
+      
+      // Auto-execute based on proposal type
+      try {
+        await _executeProposalByType(governmentId, proposal);
+      } catch (e) {
+        // Log execution error but don't revert passed status
+        await _firestore
+            .collection('Governments')
+            .doc(governmentId)
+            .collection('proposals')
+            .doc(proposal.id)
+            .update({'execution.error': e.toString()});
+      }
+    } else {
+      await updateStatus(governmentId, proposal.id, ProposalStatus.rejected);
+    }
+  }
+
+  /// Execute proposal based on type
+  Future<void> _executeProposalByType(String governmentId, ProposalModel proposal) async {
+    switch (proposal.type) {
+      case ProposalType.governanceChange:
         await executeGovernanceChange(
           governmentId: governmentId,
           proposalId: proposal.id,
-          executorUid: 'system', // System auto-execution
+          executorUid: 'system',
         );
-      } else {
-        await updateStatus(governmentId, proposal.id, 'executed');
-      }
-    } else {
-      await updateStatus(governmentId, proposal.id, 'rejected');
+        break;
+      case ProposalType.newLaw:
+      case ProposalType.amendment:
+      case ProposalType.repeal:
+        await _executeLaw(governmentId, proposal);
+        break;
+      case ProposalType.event:
+        await _executeEvent(governmentId, proposal);
+        break;
+      case ProposalType.fork:
+        await _executeFork(governmentId, proposal);
+        break;
+      default:
+        await updateStatus(governmentId, proposal.id, ProposalStatus.executed);
     }
+  }
+
+  /// Execute law proposal (create active law)
+  Future<void> _executeLaw(String governmentId, ProposalModel proposal) async {
+    final law = LawModel(
+      id: '',
+      governmentId: governmentId,
+      proposalId: proposal.id,
+      title: proposal.title,
+      summary: proposal.rationale,
+      type: proposal.category ?? 'policy',
+      enactedAt: DateTime.now(),
+      enactedBy: proposal.createdBy,
+    );
+
+    await _firestore
+        .collection('Governments')
+        .doc(governmentId)
+        .collection('laws')
+        .add(law.toJson());
+
+    await updateStatus(governmentId, proposal.id, ProposalStatus.executed);
+  }
+
+  /// Execute event proposal (publish event)
+  Future<void> _executeEvent(String governmentId, ProposalModel proposal) async {
+    // Parse event details from rationale or changes
+    final eventData = proposal.changes.isNotEmpty 
+        ? proposal.changes.first.value as Map<String, dynamic>?
+        : <String, dynamic>{};
+
+    final event = EventModel(
+      id: '',
+      governmentId: governmentId,
+      proposalId: proposal.id,
+      title: proposal.title,
+      description: proposal.rationale,
+      type: proposal.category ?? 'assembly',
+      eventDateTime: eventData?['dateTime'] != null 
+          ? DateTime.parse(eventData!['dateTime'] as String)
+          : DateTime.now().add(const Duration(days: 7)),
+      location: eventData?['location'] as String?,
+      host: eventData?['host'] as String?,
+      capacity: eventData?['capacity'] != null 
+          ? int.tryParse(eventData!['capacity'].toString())
+          : null,
+      publishedAt: DateTime.now(),
+      publishedBy: proposal.createdBy,
+    );
+
+    await _firestore
+        .collection('Governments')
+        .doc(governmentId)
+        .collection('events')
+        .add(event.toJson());
+
+    await updateStatus(governmentId, proposal.id, ProposalStatus.executed);
+  }
+
+  /// Execute fork proposal (create new government)
+  Future<void> _executeFork(String governmentId, ProposalModel proposal) async {
+    // TODO: Implement full fork logic
+    // 1. Copy government document
+    // 2. Create new government with modifications
+    // 3. Set lineage references
+    // 4. Create initial version snapshot
+    // For now, mark as executed
+    await updateStatus(governmentId, proposal.id, ProposalStatus.executed);
   }
 
   /// Check voting status on all active proposals (background job)
