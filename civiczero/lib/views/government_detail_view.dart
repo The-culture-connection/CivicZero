@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:civiczero/config/app_theme.dart';
 import 'package:civiczero/models/government_model.dart';
+import 'package:civiczero/models/member_model.dart';
 import 'package:civiczero/services/government_service.dart';
 import 'package:civiczero/services/auth_service.dart';
+import 'package:civiczero/services/role_service.dart';
+import 'package:civiczero/services/proposal_service.dart';
 import 'package:civiczero/utils/string_extensions.dart';
 import 'package:civiczero/views/proposals_view.dart';
+import 'package:civiczero/views/role_powers_view.dart';
+import 'package:civiczero/views/propose_amendment_view.dart';
 
 class GovernmentDetailView extends StatefulWidget {
   final GovernmentModel government;
@@ -18,8 +23,12 @@ class GovernmentDetailView extends StatefulWidget {
 class _GovernmentDetailViewState extends State<GovernmentDetailView> {
   final GovernmentService _governmentService = GovernmentService();
   final AuthService _authService = AuthService();
+  final RoleService _roleService = RoleService();
+  final ProposalService _proposalService = ProposalService();
+  
   bool _isMember = false;
   bool _isLoading = false;
+  MemberModel? _currentMember;
 
   @override
   void initState() {
@@ -30,10 +39,11 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
   Future<void> _checkMembership() async {
     final uid = _authService.currentUser?.uid;
     if (uid != null) {
-      // Check membership by UID (AUTHORITY)
-      final isMember = await _governmentService.isMember(widget.government.id, uid);
+      // Get member data by UID (AUTHORITY)
+      final member = await _governmentService.getMember(widget.government.id, uid);
       setState(() {
-        _isMember = isMember;
+        _currentMember = member;
+        _isMember = member != null && member.status == 'active';
       });
     }
   }
@@ -101,16 +111,9 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
         backgroundColor: AppColors.primaryDark,
         actions: [
           IconButton(
-            icon: const Icon(Icons.description),
-            tooltip: 'View Proposals',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProposalsView(government: gov),
-                ),
-              );
-            },
+            icon: const Icon(Icons.flash_on),
+            tooltip: 'Actions',
+            onPressed: () => _showActionsSheet(),
           ),
         ],
       ),
@@ -201,6 +204,127 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
                 ],
               ),
             ),
+            // Your Status Card (if member)
+            if (_currentMember != null) ...[
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Card(
+                  elevation: 3,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RolePowersView(
+                            government: gov,
+                            member: _currentMember,
+                          ),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.person, color: AppColors.primaryDark),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Your Status',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Spacer(),
+                              const Icon(Icons.chevron_right, color: Colors.grey),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Roles: ${_currentMember!.roles.map((r) => r.capitalize()).join(', ')}',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 4,
+                            children: [
+                              _buildQuickPermission('Vote', _roleService.canPerform(member: _currentMember, government: gov, action: 'vote')),
+                              _buildQuickPermission('Propose Laws', _roleService.canPerform(member: _currentMember, government: gov, action: 'propose_laws')),
+                              _buildQuickPermission('Propose Events', _roleService.canPerform(member: _currentMember, government: gov, action: 'propose_events')),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            // Proposals Summary Card
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProposalsView(government: gov),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryDark.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.description, color: AppColors.primaryDark),
+                        ),
+                        const SizedBox(width: 16),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Proposals',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'View active proposals and vote',
+                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, color: Colors.grey),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             // Sections
             Padding(
               padding: const EdgeInsets.all(16),
@@ -684,5 +808,283 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
     if (powers['beElected'] == true) activePowers.add('Be Elected');
     if (powers['editDocs'] != 'no') activePowers.add('Edit Docs (${powers['editDocs']})');
     return activePowers.isEmpty ? 'No special powers' : activePowers.join(', ');
+  }
+
+  Widget _buildQuickPermission(String label, bool allowed) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12),
+        ),
+        const SizedBox(width: 4),
+        Icon(
+          allowed ? Icons.check_circle : Icons.lock,
+          size: 14,
+          color: allowed ? Colors.green : Colors.grey,
+        ),
+      ],
+    );
+  }
+
+  void _showActionsSheet() {
+    final actions = [
+      {
+        'category': 'Primary',
+        'items': [
+          {'label': 'Propose Amendment', 'icon': Icons.edit_document, 'action': 'propose_laws', 'type': 'governance_change'},
+          {'label': 'Propose Law', 'icon': Icons.gavel, 'action': 'propose_laws', 'type': 'new_law'},
+          {'label': 'Propose Event', 'icon': Icons.event, 'action': 'propose_events', 'type': 'event'},
+          {'label': 'Fork Government', 'icon': Icons.call_split, 'action': 'fork', 'type': 'fork'},
+          {'label': 'Run Simulation', 'icon': Icons.analytics, 'action': 'initiate_simulations', 'type': 'simulation'},
+        ],
+      },
+      {
+        'category': 'Secondary',
+        'items': [
+          {'label': 'View Proposals', 'icon': Icons.description, 'action': 'view', 'type': 'navigation'},
+          {'label': 'View Role System', 'icon': Icons.admin_panel_settings, 'action': 'view', 'type': 'navigation'},
+        ],
+      },
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Actions',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+            ...actions.map((section) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    section['category'] as String,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...(section['items'] as List).map((item) {
+                    final action = item['action'] as String;
+                    final canDo = action == 'view' || _roleService.canPerform(
+                      member: _currentMember,
+                      government: widget.government,
+                      action: action,
+                    );
+                    
+                    return ListTile(
+                      leading: Icon(
+                        item['icon'] as IconData,
+                        color: canDo ? AppColors.primaryDark : Colors.grey,
+                      ),
+                      title: Text(item['label'] as String),
+                      trailing: Icon(
+                        canDo ? Icons.check_circle : Icons.lock,
+                        color: canDo ? Colors.green : Colors.grey,
+                        size: 20,
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        if (canDo) {
+                          _handleAction(item);
+                        } else {
+                          _showLockedActionExplainer(item['label'] as String, action);
+                        }
+                      },
+                    );
+                  }).toList(),
+                  const SizedBox(height: 16),
+                ],
+              );
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleAction(Map<String, dynamic> action) {
+    final type = action['type'] as String;
+    
+    switch (type) {
+      case 'navigation':
+        if (action['label'] == 'View Proposals') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProposalsView(government: widget.government),
+            ),
+          );
+        } else if (action['label'] == 'View Role System') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RolePowersView(
+                government: widget.government,
+                member: _currentMember,
+              ),
+            ),
+          );
+        }
+        break;
+      case 'governance_change':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProposeAmendmentView(
+              government: widget.government,
+              proposalType: 'governance_change',
+            ),
+          ),
+        );
+        break;
+      case 'new_law':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProposeAmendmentView(
+              government: widget.government,
+              proposalType: 'new_law',
+            ),
+          ),
+        );
+        break;
+      case 'event':
+      case 'fork':
+      case 'simulation':
+        // TODO: Implement proposal creation for these types
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${action['label']} - Coming soon!')),
+        );
+        break;
+    }
+  }
+
+  void _showLockedActionExplainer(String action, String permissionKey) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.lock, color: Colors.orange),
+            const SizedBox(width: 8),
+            const Expanded(child: Text('Action Locked')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You cannot: $action',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            const Text('Why:', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(_getPermissionRequirement(permissionKey)),
+            const SizedBox(height: 16),
+            const Text('What to do:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('• View Role System to see requirements'),
+            const Text('• Check how to gain required role'),
+            if (!_isMember)
+              const Text('• Join the government first'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RolePowersView(
+                    government: widget.government,
+                    member: _currentMember,
+                  ),
+                ),
+              );
+            },
+            child: const Text('View Roles'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getPermissionRequirement(String action) {
+    if (_currentMember == null) return 'You must join this government first';
+    
+    // Find which role has this permission
+    for (final role in widget.government.enabledRoles) {
+      final powers = widget.government.rolePowers[role];
+      if (powers == null) continue;
+      
+      bool hasPermission = false;
+      switch (action) {
+        case 'fork':
+          hasPermission = powers['fork'] == true;
+          break;
+        case 'propose_events':
+          hasPermission = powers['proposeEvents'] == true;
+          break;
+        case 'propose_laws':
+          hasPermission = powers['proposeLaws'] == true;
+          break;
+        case 'vote':
+          hasPermission = powers['vote'] == true;
+          break;
+        case 'initiate_simulations':
+          hasPermission = powers['initiateSimulations'] == true;
+          break;
+      }
+      
+      if (hasPermission) {
+        return 'Requires $role role. ${_getRoleTransitionHint(role)}';
+      }
+    }
+    
+    return 'This action is not available in this government';
+  }
+
+  String _getRoleTransitionHint(String role) {
+    final transition = widget.government.roleTransitions[role];
+    if (transition == null) return '';
+    
+    final method = transition['method'] as String? ?? 'automatic';
+    switch (method) {
+      case 'automatic':
+        return 'Join and meet criteria';
+      case 'election':
+        return 'Must be elected';
+      case 'appointment':
+        return 'Must be appointed';
+      case 'sortition':
+        return 'Selected by lottery';
+      case 'invitation':
+        return 'Requires invitation';
+      case 'public_vote':
+        return 'Requires public approval';
+      default:
+        return '';
+    }
   }
 }
