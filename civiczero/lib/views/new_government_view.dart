@@ -3,6 +3,7 @@ import 'package:civiczero/config/app_theme.dart';
 import 'package:civiczero/models/government_model.dart';
 import 'package:civiczero/services/government_service.dart';
 import 'package:civiczero/services/auth_service.dart';
+import 'package:civiczero/utils/string_extensions.dart';
 
 class NewGovernmentView extends StatefulWidget {
   const NewGovernmentView({super.key});
@@ -695,11 +696,5 @@ Widget _buildNameAndScopePage() {
         ),
       ],
     );
-  }
-}
-
-extension StringExtension on String {
-  String capitalize() {
-    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }

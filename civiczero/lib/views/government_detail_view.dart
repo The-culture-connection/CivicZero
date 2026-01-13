@@ -3,6 +3,7 @@ import 'package:civiczero/config/app_theme.dart';
 import 'package:civiczero/models/government_model.dart';
 import 'package:civiczero/services/government_service.dart';
 import 'package:civiczero/services/auth_service.dart';
+import 'package:civiczero/utils/string_extensions.dart';
 
 class GovernmentDetailView extends StatefulWidget {
   final GovernmentModel government;
@@ -366,12 +367,5 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
         ],
       ),
     );
-  }
-}
-
-extension StringExtension on String {
-  String capitalize() {
-    if (isEmpty) return this;
-    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }

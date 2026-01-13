@@ -5,6 +5,7 @@ import 'package:civiczero/services/government_service.dart';
 import 'package:civiczero/services/auth_service.dart';
 import 'package:civiczero/views/new_government_view.dart';
 import 'package:civiczero/views/government_detail_view.dart';
+import 'package:civiczero/utils/string_extensions.dart';
 
 class GovernmentsView extends StatefulWidget {
   const GovernmentsView({super.key});
@@ -370,12 +371,5 @@ class _GovernmentsViewState extends State<GovernmentsView> with SingleTickerProv
         ),
       ],
     );
-  }
-}
-
-extension StringExtension on String {
-  String capitalize() {
-    if (isEmpty) return this;
-    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }
