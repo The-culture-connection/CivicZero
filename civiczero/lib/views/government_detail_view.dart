@@ -4,6 +4,7 @@ import 'package:civiczero/models/government_model.dart';
 import 'package:civiczero/services/government_service.dart';
 import 'package:civiczero/services/auth_service.dart';
 import 'package:civiczero/utils/string_extensions.dart';
+import 'package:civiczero/views/proposals_view.dart';
 
 class GovernmentDetailView extends StatefulWidget {
   final GovernmentModel government;
@@ -98,6 +99,20 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
       appBar: AppBar(
         title: Text(gov.name),
         backgroundColor: AppColors.primaryDark,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.description),
+            tooltip: 'View Proposals',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProposalsView(government: gov),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(

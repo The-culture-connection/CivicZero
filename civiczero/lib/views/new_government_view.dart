@@ -73,7 +73,7 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
   final Map<String, String> _roleDurations = {};
   
   // Section 5: Lawmaking SOP (ENHANCED)
-  final Set<String> _proposalTypes = {'new_law'};
+  final Set<String> _proposalTypes = {'new_law', 'governance_change'}; // governance_change is REQUIRED!
   final Map<String, Map<String, dynamic>> _lawmakingSOP = {};
   final Map<String, dynamic> _forkRules = {};
   final Map<String, dynamic> _simulationTriggers = {};
@@ -134,6 +134,15 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
       'voteRequired': true,
       'votingBody': 'eligible_voters',
       'threshold': 'simple_majority',
+    };
+    
+    // CRITICAL: governance_change must have higher threshold!
+    _lawmakingSOP['governance_change'] = {
+      'debateRequired': 'always',
+      'debateFormat': 'open_discussion',
+      'voteRequired': true,
+      'votingBody': 'eligible_voters',
+      'threshold': 'supermajority_66', // Require 2/3 majority for governance changes!
     };
   }
 
@@ -1049,7 +1058,29 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
           'Configure what each role can do',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Note: Changes to role powers after creation require a governance proposal',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 16),
+        // Only show ENABLED roles (eliminates confusion!)
         ..._enabledRoles.map((role) => Card(
           margin: const EdgeInsets.only(bottom: 16),
           child: ExpansionTile(
@@ -1182,10 +1213,30 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
         const SizedBox(height: 16),
         const Text('Proposal Types:', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.lock, color: Colors.orange.shade700, size: 16),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Governance Change is required and cannot be disabled',
+                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         _buildCheckOption('New Law', 'new_law', _proposalTypes),
         _buildCheckOption('Law Amendment', 'amendment', _proposalTypes),
         _buildCheckOption('Law Repeal', 'repeal', _proposalTypes),
-        _buildCheckOption('Constitutional Amendment', 'constitutional', _proposalTypes),
+        _buildCheckOption('Governance Change (required)', 'governance_change', _proposalTypes, locked: true),
         _buildCheckOption('Emergency Action', 'emergency', _proposalTypes),
         const SizedBox(height: 24),
         ..._proposalTypes.map((type) => Card(
@@ -1520,11 +1571,11 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
     );
   }
 
-  Widget _buildCheckOption(String label, String value, Set<String> selectedSet) {
+  Widget _buildCheckOption(String label, String value, Set<String> selectedSet, {bool locked = false}) {
     return CheckboxListTile(
       title: Text(label),
       value: selectedSet.contains(value),
-      onChanged: (checked) {
+      onChanged: locked ? null : (checked) {
         setState(() {
           if (checked == true) {
             selectedSet.add(value);
@@ -1534,6 +1585,7 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
         });
       },
       dense: true,
+      enabled: !locked,
     );
   }
 
