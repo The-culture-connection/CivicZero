@@ -76,11 +76,9 @@ class GovernmentService {
   }
 
   // Get governments user has joined (via members subcollection with UID)
-  Stream<List<GovernmentModel>> getJoinedGovernments(String uid) async* {
-    // This is a simplified approach - in production, consider a user's governments collection
-    // For now, we'll query governments where user is a member
-    
-    await for (final _ in Stream.periodic(const Duration(seconds: 2))) {
+  Stream<List<GovernmentModel>> getJoinedGovernments(String uid) {
+    // Return a broadcast stream that can be listened to multiple times
+    return Stream.periodic(const Duration(seconds: 2)).asyncMap((_) async {
       try {
         final govSnapshot = await _firestore.collection('Governments').get();
         final joinedGovs = <GovernmentModel>[];
@@ -101,11 +99,11 @@ class GovernmentService {
           }
         }
         
-        yield joinedGovs;
+        return joinedGovs;
       } catch (e) {
-        yield [];
+        return <GovernmentModel>[];
       }
-    }
+    }).asBroadcastStream(); // Make it a broadcast stream!
   }
 
   // Get single government by ID
