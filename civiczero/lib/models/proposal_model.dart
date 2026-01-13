@@ -83,6 +83,12 @@ class ProposalModel {
   }
 
   Map<String, dynamic> toJson() {
+    // Use local variables to allow null promotion
+    final updatedAtValue = updatedAt;
+    final votingStartedValue = votingStarted;
+    final votingEndsValue = votingEnds;
+    final executedAtValue = executedAt;
+    
     return {
       'id': id,
       'governmentId': governmentId,
@@ -92,7 +98,7 @@ class ProposalModel {
       'createdBy': createdBy,
       'creatorUsername': creatorUsername,
       'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt) : null,
+      'updatedAt': updatedAtValue != null ? Timestamp.fromDate(updatedAtValue) : null,
       'title': title,
       'rationale': rationale,
       'changes': changes.map((e) => e.toJson()).toList(),
@@ -100,9 +106,9 @@ class ProposalModel {
       'votesFor': votesFor,
       'votesAgainst': votesAgainst,
       'votesAbstain': votesAbstain,
-      'votingStarted': votingStarted != null ? Timestamp.fromDate(votingStarted) : null,
-      'votingEnds': votingEnds != null ? Timestamp.fromDate(votingEnds) : null,
-      'executedAt': executedAt != null ? Timestamp.fromDate(executedAt) : null,
+      'votingStarted': votingStartedValue != null ? Timestamp.fromDate(votingStartedValue) : null,
+      'votingEnds': votingEndsValue != null ? Timestamp.fromDate(votingEndsValue) : null,
+      'executedAt': executedAtValue != null ? Timestamp.fromDate(executedAtValue) : null,
       'executedBy': executedBy,
     };
   }
