@@ -18,14 +18,26 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
   final AuthService _authService = AuthService();
   
   int _currentPage = 0;
-  final int _totalPages = 9; // 0-8 sections
+  final int _totalPages = 14; // 0-13 sections (added 5 new)
   bool _isLoading = false;
 
   // Form data
   final _nameController = TextEditingController();
   
+  // NEW: Blueprint Seed
+  String? _blueprintSeed;
+  
   // Section 0: Scope
   String _scope = 'local';
+  
+  // NEW: Budget Allocation (must total 100)
+  final Map<String, int> _budgetWeights = {
+    'security': 20,
+    'social': 20,
+    'infrastructure': 20,
+    'innovation': 20,
+    'admin': 20,
+  };
   
   // Section 1: Purpose & Preamble
   final Set<String> _purposes = {};
@@ -51,6 +63,9 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
   final Set<String> _branches = {};
   String _checksAndBalances = 'yes_symmetrical';
   
+  // NEW: Custom Institutions
+  final List<Map<String, dynamic>> _customInstitutions = [];
+  
   // Section 4: Representation & Elections
   String _representationModel = 'elected_representatives';
   final Set<String> _votingEligibility = {};
@@ -75,6 +90,17 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
   
   // Section 8: Metrics
   final Set<String> _trackedOutcomes = {};
+  
+  // NEW: Crisis Stress Test
+  final Map<String, String> _stressResponses = {
+    'unrest': '',
+    'corruption': '',
+    'economic_shock': '',
+  };
+  
+  // NEW: Participation Culture
+  String _participationCulture = 'balanced';
+  String _decisionLatency = 'medium';
 
   @override
   void dispose() {
@@ -127,7 +153,9 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
         name: _nameController.text.trim(),
         createdBy: _authService.currentUser!.uid,
         createdAt: DateTime.now(),
+        blueprintSeed: _blueprintSeed,
         scope: _scope,
+        budgetWeights: _budgetWeights,
         purpose: _purposes.toList(),
         principles: _principles,
         preambleMode: _preambleMode,
@@ -159,6 +187,10 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
           'economic_health': 0.5,
         },
         trackedOutcomes: _trackedOutcomes.toList(),
+        customInstitutions: _customInstitutions,
+        stressResponses: _stressResponses,
+        participationCulture: _participationCulture,
+        decisionLatency: _decisionLatency,
         memberIds: [_authService.currentUser!.uid],
         memberCount: 1,
       );
@@ -232,13 +264,18 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
               },
               children: [
                 _buildNameAndScopePage(),
+                _buildBlueprintSeedPage(),
+                _buildBudgetAllocationPage(),
                 _buildPurposePage(),
                 _buildRightsPage(),
                 _buildStructurePage(),
+                _buildCustomInstitutionPage(),
                 _buildRepresentationPage(),
+                _buildParticipationCulturePage(),
                 _buildLawmakingPage(),
                 _buildEnforcementPage(),
                 _buildChangePage(),
+                _buildStressTestPage(),
                 _buildMetricsPage(),
               ],
             ),
@@ -293,7 +330,477 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
     );
   }
 
-Widget _buildNameAndScopePage() {
+  Widget _buildBlueprintSeedPage() {
+    return _buildPageScaffold(
+      title: 'Choose a Blueprint (Optional)',
+      children: [
+        const Text(
+          'Start from a template or build from scratch',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+        const SizedBox(height: 24),
+        _buildBlueprintCard(
+          'Direct Democracy',
+          'All members vote on all laws. High participation, slower decisions.',
+          'direct_democracy',
+          Icons.how_to_vote,
+        ),
+        _buildBlueprintCard(
+          'Representative Republic',
+          'Elected representatives with checks and balances. Balanced approach.',
+          'republic',
+          Icons.account_balance,
+        ),
+        _buildBlueprintCard(
+          'Technocracy',
+          'Expert-led with merit-based selection. Efficient, expertise-focused.',
+          'technocracy',
+          Icons.science,
+        ),
+        _buildBlueprintCard(
+          'Consensus Community',
+          'Deliberation and unanimity required. High trust, relationship-based.',
+          'consensus',
+          Icons.groups,
+        ),
+        _buildBlueprintCard(
+          'From Scratch',
+          'Build your government without any pre-set defaults.',
+          null,
+          Icons.construction,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBlueprintCard(String title, String description, String? seed, IconData icon) {
+    final isSelected = _blueprintSeed == seed;
+    return Card(
+      elevation: isSelected ? 4 : 1,
+      color: isSelected ? AppColors.primaryDark.withOpacity(0.1) : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isSelected ? AppColors.primaryDark : Colors.grey.shade300,
+          width: isSelected ? 2 : 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: () => setState(() => _blueprintSeed = seed),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primaryDark : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: isSelected ? Colors.white : Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? AppColors.primaryDark : null,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                const Icon(Icons.check_circle, color: AppColors.primaryDark),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBudgetAllocationPage() {
+    final total = _budgetWeights.values.fold(0, (a, b) => a + b);
+    final isValid = total == 100;
+
+    return _buildPageScaffold(
+      title: 'Budget Allocation',
+      children: [
+        const Text(
+          'Allocate 100 points across priorities. This shapes your government\'s focus.',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isValid ? Colors.green.shade50 : Colors.red.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isValid ? Colors.green : Colors.red,
+              width: 2,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isValid ? Icons.check_circle : Icons.warning,
+                color: isValid ? Colors.green : Colors.red,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Total: $total / 100',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isValid ? Colors.green.shade900 : Colors.red.shade900,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildBudgetSlider('Security & Enforcement', 'security', Icons.security),
+        _buildBudgetSlider('Social Guarantees', 'social', Icons.favorite),
+        _buildBudgetSlider('Infrastructure & Public Goods', 'infrastructure', Icons.foundation),
+        _buildBudgetSlider('Innovation & Research', 'innovation', Icons.lightbulb),
+        _buildBudgetSlider('Administrative Overhead', 'admin', Icons.admin_panel_settings),
+      ],
+    );
+  }
+
+  Widget _buildBudgetSlider(String label, String key, IconData icon) {
+    final value = _budgetWeights[key]!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 20, color: AppColors.primaryDark),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primaryDark,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$value',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        Slider(
+          value: value.toDouble(),
+          onChanged: (val) {
+            setState(() => _budgetWeights[key] = val.toInt());
+          },
+          min: 0,
+          max: 100,
+          divisions: 20,
+          activeColor: AppColors.primaryDark,
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildCustomInstitutionPage() {
+    return _buildPageScaffold(
+      title: 'Custom Institution (Optional)',
+      children: [
+        const Text(
+          'Add a unique institution to your government. This creates distinctive governance.',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 24),
+        if (_customInstitutions.isEmpty) ...[
+          ElevatedButton.icon(
+            onPressed: () => _showAddInstitutionDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text('Add Custom Institution'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryDark,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.all(16),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Or skip to keep it simple',
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+        ] else
+          ..._customInstitutions.map((inst) => Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            child: ListTile(
+              leading: const Icon(Icons.account_balance, color: AppColors.primaryDark),
+              title: Text(inst['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('Type: ${inst['type']}\nPowers: ${(inst['powers'] as List).join(', ')}'),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  setState(() => _customInstitutions.remove(inst));
+                },
+              ),
+              isThreeLine: true,
+            ),
+          )).toList(),
+        if (_customInstitutions.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          TextButton.icon(
+            onPressed: () => _showAddInstitutionDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text('Add Another Institution'),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _showAddInstitutionDialog() {
+    String name = '';
+    String type = 'ombudsman';
+    Set<String> powers = {};
+    String selection = 'election';
+    Set<String> accountability = {};
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Custom Institution'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Institution Name',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (val) => name = val,
+                ),
+                const SizedBox(height: 16),
+                const Text('Type:', style: TextStyle(fontWeight: FontWeight.bold)),
+                DropdownButton<String>(
+                  value: type,
+                  isExpanded: true,
+                  items: [
+                    'ombudsman',
+                    'citizen_assembly',
+                    'standards_board',
+                    'ethics_tribunal',
+                    'mediation_council',
+                    'custom',
+                  ].map((t) => DropdownMenuItem(value: t, child: Text(t.replaceAll('_', ' ')))).toList(),
+                  onChanged: (val) => setDialogState(() => type = val!),
+                ),
+                const SizedBox(height: 16),
+                const Text('Powers:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Wrap(
+                  spacing: 8,
+                  children: ['advisory', 'veto', 'audit', 'investigate', 'prosecute', 'publish_reports']
+                      .map((p) => FilterChip(
+                            label: Text(p),
+                            selected: powers.contains(p),
+                            onSelected: (selected) {
+                              setDialogState(() {
+                                if (selected) powers.add(p); else powers.remove(p);
+                              });
+                            },
+                          ))
+                      .toList(),
+                ),
+                const SizedBox(height: 16),
+                const Text('Selection Method:', style: TextStyle(fontWeight: FontWeight.bold)),
+                DropdownButton<String>(
+                  value: selection,
+                  isExpanded: true,
+                  items: ['election', 'sortition', 'appointment', 'credentials']
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                  onChanged: (val) => setDialogState(() => selection = val!),
+                ),
+                const SizedBox(height: 16),
+                const Text('Accountability:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Wrap(
+                  spacing: 8,
+                  children: ['recall', 'term_limit', 'oversight', 'transparency']
+                      .map((a) => FilterChip(
+                            label: Text(a),
+                            selected: accountability.contains(a),
+                            onSelected: (selected) {
+                              setDialogState(() {
+                                if (selected) accountability.add(a); else accountability.remove(a);
+                              });
+                            },
+                          ))
+                      .toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (name.isNotEmpty) {
+                  setState(() {
+                    _customInstitutions.add({
+                      'name': name,
+                      'type': type,
+                      'powers': powers.toList(),
+                      'selection': selection,
+                      'accountability': accountability.toList(),
+                    });
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildParticipationCulturePage() {
+    return _buildPageScaffold(
+      title: 'Participation Culture',
+      children: [
+        const Text(
+          'How does your government make decisions?',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 16),
+        _buildRadioOption('Low participation, high delegation', 'low_delegation', _participationCulture, (val) => setState(() => _participationCulture = val!)),
+        _buildRadioOption('Frequent referendums', 'frequent_referendums', _participationCulture, (val) => setState(() => _participationCulture = val!)),
+        _buildRadioOption('Deliberation-first (discussion required)', 'deliberation_first', _participationCulture, (val) => setState(() => _participationCulture = val!)),
+        _buildRadioOption('Efficiency-first (fast decisions)', 'efficiency_first', _participationCulture, (val) => setState(() => _participationCulture = val!)),
+        _buildRadioOption('Expertise-gated (credential pathways)', 'expertise_gated', _participationCulture, (val) => setState(() => _participationCulture = val!)),
+        _buildRadioOption('Rotating civic duty (sortition)', 'sortition_duty', _participationCulture, (val) => setState(() => _participationCulture = val!)),
+        _buildRadioOption('Balanced (default)', 'balanced', _participationCulture, (val) => setState(() => _participationCulture = val!)),
+        const SizedBox(height: 24),
+        const Text(
+          'Decision Speed',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 16),
+        _buildRadioOption('Fast (days)', 'low', _decisionLatency, (val) => setState(() => _decisionLatency = val!)),
+        _buildRadioOption('Medium (weeks)', 'medium', _decisionLatency, (val) => setState(() => _decisionLatency = val!)),
+        _buildRadioOption('Slow (months)', 'high', _decisionLatency, (val) => setState(() => _decisionLatency = val!)),
+      ],
+    );
+  }
+
+  Widget _buildStressTestPage() {
+    return _buildPageScaffold(
+      title: 'Crisis Stress Test',
+      children: [
+        const Text(
+          'How would your government respond to these scenarios?',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 24),
+        _buildStressScenario(
+          'Scenario A: Civil Unrest',
+          'A controversial law passes. Protests erupt. How do you respond?',
+          Icons.warning,
+          'unrest',
+          ['enforce_strictly', 'open_dialogue', 'hold_referendum', 'judicial_review', 'decentralize_decision'],
+        ),
+        const SizedBox(height: 24),
+        _buildStressScenario(
+          'Scenario B: Corruption Scandal',
+          'A high-ranking official is accused of corruption. What happens?',
+          Icons.gavel,
+          'corruption',
+          ['independent_audit', 'public_recall', 'criminal_trial', 'immunity_protection', 'forced_resignation'],
+        ),
+        const SizedBox(height: 24),
+        _buildStressScenario(
+          'Scenario C: Economic Shock',
+          'A sudden economic crisis hits. Unemployment rises. What\'s your response?',
+          Icons.trending_down,
+          'economic_shock',
+          ['austerity_measures', 'stimulus_spending', 'price_controls', 'universal_basic_income', 'deregulation'],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStressScenario(String title, String description, IconData icon, String key, List<String> options) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: Colors.orange, size: 32),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(description, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...options.map((option) => RadioListTile<String>(
+              title: Text(option.replaceAll('_', ' ').capitalize()),
+              value: option,
+              groupValue: _stressResponses[key],
+              onChanged: (val) => setState(() => _stressResponses[key] = val!),
+              dense: true,
+            )).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNameAndScopePage() {
     return _buildPageScaffold(
       title: 'Government Name & Scope',
       children: [

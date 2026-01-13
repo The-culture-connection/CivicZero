@@ -180,6 +180,40 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
+                  if (gov.blueprintSeed != null) ...[
+                    _buildSection('Blueprint', [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryDark.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.account_balance, color: AppColors.primaryDark),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Based on: ${gov.blueprintSeed!.replaceAll('_', ' ').capitalize()}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 16),
+                  ],
+                  _buildSection('Budget Allocation', [
+                    const Text(
+                      'Resource priorities across key areas:',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    ...gov.budgetWeights.entries.map((e) => _buildBudgetBar(e.key, e.value)).toList(),
+                  ]),
+                  const SizedBox(height: 16),
                   _buildSection('Purpose & Principles', [
                     _buildInfoRow('Primary Purposes', gov.purpose.join(', ')),
                     const SizedBox(height: 16),
@@ -230,6 +264,79 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
                     _buildInfoRow('Change Triggers', gov.changeTriggers.join(', ')),
                   ]),
                   const SizedBox(height: 16),
+                  if (gov.customInstitutions.isNotEmpty) ...[
+                    _buildSection('Custom Institutions', [
+                      ...gov.customInstitutions.map((inst) => Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        color: Colors.blue.shade50,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.account_balance, color: AppColors.primaryDark, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      inst['name'] as String,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text('Type: ${(inst['type'] as String).replaceAll('_', ' ').capitalize()}',
+                                  style: const TextStyle(fontSize: 13)),
+                              Text('Powers: ${(inst['powers'] as List).map((p) => (p as String).replaceAll('_', ' ')).join(', ')}',
+                                  style: const TextStyle(fontSize: 13)),
+                              Text('Selection: ${(inst['selection'] as String).capitalize()}',
+                                  style: const TextStyle(fontSize: 13)),
+                              Text('Accountability: ${(inst['accountability'] as List).map((a) => (a as String).replaceAll('_', ' ')).join(', ')}',
+                                  style: const TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      )).toList(),
+                    ]),
+                    const SizedBox(height: 16),
+                  ],
+                  _buildSection('Participation Culture', [
+                    _buildInfoRow('Decision Making Style', gov.participationCulture.replaceAll('_', ' ').capitalize()),
+                    _buildInfoRow('Decision Speed', gov.decisionLatency == 'low' ? 'Fast (days)' : 
+                        gov.decisionLatency == 'medium' ? 'Medium (weeks)' : 'Slow (months)'),
+                  ]),
+                  const SizedBox(height: 16),
+                  if (gov.stressResponses.isNotEmpty && gov.stressResponses.values.any((v) => v.isNotEmpty)) ...[
+                    _buildSection('Crisis Response Strategy', [
+                      if (gov.stressResponses['unrest']?.isNotEmpty == true)
+                        _buildStressResponseCard(
+                          'Civil Unrest',
+                          gov.stressResponses['unrest']!,
+                          Icons.warning,
+                          Colors.orange,
+                        ),
+                      if (gov.stressResponses['corruption']?.isNotEmpty == true)
+                        _buildStressResponseCard(
+                          'Corruption',
+                          gov.stressResponses['corruption']!,
+                          Icons.gavel,
+                          Colors.red,
+                        ),
+                      if (gov.stressResponses['economic_shock']?.isNotEmpty == true)
+                        _buildStressResponseCard(
+                          'Economic Crisis',
+                          gov.stressResponses['economic_shock']!,
+                          Icons.trending_down,
+                          Colors.blue,
+                        ),
+                    ]),
+                    const SizedBox(height: 16),
+                  ],
                   _buildSection('Performance Metrics', [
                     const Text(
                       'Current System Health:',
@@ -362,6 +469,108 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
                 value > 0.7 ? Colors.green : value > 0.4 ? Colors.orange : Colors.red,
               ),
               minHeight: 8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBudgetBar(String key, int value) {
+    final labels = {
+      'security': 'Security & Enforcement',
+      'social': 'Social Guarantees',
+      'infrastructure': 'Infrastructure & Public Goods',
+      'innovation': 'Innovation & Research',
+      'admin': 'Administrative Overhead',
+    };
+    
+    final icons = {
+      'security': Icons.security,
+      'social': Icons.favorite,
+      'infrastructure': Icons.foundation,
+      'innovation': Icons.lightbulb,
+      'admin': Icons.admin_panel_settings,
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icons[key], size: 16, color: AppColors.primaryDark),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  labels[key] ?? key,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryDark,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$value',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: value / 100,
+              backgroundColor: Colors.grey[300],
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryDark),
+              minHeight: 6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStressResponseCard(String title, String response, IconData icon, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: color.withOpacity(0.8),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  response.replaceAll('_', ' ').capitalize(),
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
             ),
           ),
         ],
