@@ -341,8 +341,8 @@ class _GovernmentsViewState extends State<GovernmentsView> with SingleTickerProv
                   ),
                   const SizedBox(width: 16),
                   _buildInfoChip(
-                    icon: Icons.gavel,
-                    label: gov.representationModel.split('_').first.capitalize(),
+                    icon: Icons.people_alt,
+                    label: '${gov.enabledRoles.length} Roles',
                   ),
                 ],
               ),
