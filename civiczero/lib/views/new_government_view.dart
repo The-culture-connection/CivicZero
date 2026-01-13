@@ -73,7 +73,7 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
   final Map<String, String> _roleDurations = {};
   
   // Section 5: Lawmaking SOP (ENHANCED)
-  final Set<String> _proposalTypes = {'new_law', 'governance_change'}; // governance_change is REQUIRED!
+  final Set<String> _proposalTypes = {'new_law', 'amendment', 'repeal', 'governance_change', 'event', 'fork'}; // All types!
   final Map<String, Map<String, dynamic>> _lawmakingSOP = {};
   final Map<String, dynamic> _forkRules = {};
   final Map<String, dynamic> _simulationTriggers = {};
@@ -149,6 +149,54 @@ class _NewGovernmentViewState extends State<NewGovernmentView> {
       'debateLatency': 'high', // Longer debate for constitutional changes
       'votingLatency': 'high', // Longer voting period
       'executionLatency': 'low', // Fast execution once passed
+    };
+    
+    // Amendment SOP (modify existing law)
+    _lawmakingSOP['amendment'] = {
+      'debateRequired': 'optional',
+      'debateFormat': 'open_discussion',
+      'voteRequired': true,
+      'votingBody': 'eligible_voters',
+      'threshold': 'simple_majority',
+      'debateLatency': 'medium',
+      'votingLatency': 'medium',
+      'executionLatency': 'medium',
+    };
+    
+    // Repeal SOP (remove law)
+    _lawmakingSOP['repeal'] = {
+      'debateRequired': 'optional',
+      'debateFormat': 'open_discussion',
+      'voteRequired': true,
+      'votingBody': 'eligible_voters',
+      'threshold': 'simple_majority',
+      'debateLatency': 'medium',
+      'votingLatency': 'medium',
+      'executionLatency': 'medium',
+    };
+    
+    // Event SOP (community events)
+    _lawmakingSOP['event'] = {
+      'debateRequired': 'never',
+      'debateFormat': 'open_discussion',
+      'voteRequired': false,
+      'votingBody': 'all_members',
+      'threshold': 'simple_majority',
+      'debateLatency': 'low',
+      'votingLatency': 'low',
+      'executionLatency': 'low',
+    };
+    
+    // Fork SOP (create new government from this one)
+    _lawmakingSOP['fork'] = {
+      'debateRequired': 'optional',
+      'debateFormat': 'open_discussion',
+      'voteRequired': true,
+      'votingBody': 'all_members',
+      'threshold': 'simple_majority',
+      'debateLatency': 'medium',
+      'votingLatency': 'medium',
+      'executionLatency': 'low',
     };
   }
 

@@ -10,6 +10,10 @@ import 'package:civiczero/utils/string_extensions.dart';
 import 'package:civiczero/views/proposals_view.dart';
 import 'package:civiczero/views/role_powers_view.dart';
 import 'package:civiczero/views/propose_amendment_view.dart';
+import 'package:civiczero/views/law_wizard_view.dart';
+import 'package:civiczero/views/event_wizard_view.dart';
+import 'package:civiczero/views/fork_wizard_view.dart';
+import 'package:civiczero/views/simulation_launch_view.dart';
 
 class GovernmentDetailView extends StatefulWidget {
   final GovernmentModel government;
@@ -1005,19 +1009,32 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ProposeAmendmentView(
-              government: widget.government,
-              proposalType: 'new_law',
-            ),
+            builder: (context) => LawWizardView(government: widget.government),
           ),
         );
         break;
       case 'event':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EventWizardView(government: widget.government),
+          ),
+        );
+        break;
       case 'fork':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ForkWizardView(government: widget.government),
+          ),
+        );
+        break;
       case 'simulation':
-        // TODO: Implement proposal creation for these types
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${action['label']} - Coming soon!')),
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SimulationLaunchView(government: widget.government),
+          ),
         );
         break;
     }
