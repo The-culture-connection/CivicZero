@@ -94,11 +94,22 @@ class _ProposeAmendmentViewState extends State<ProposeAmendmentView> {
       return;
     }
 
-    if (_changes.isEmpty && widget.proposalType == 'governance_change') {
+    // For role_system changes, require structured changes
+    // For other targets, the rationale describes the change
+    if (_changes.isEmpty && _amendmentTarget == 'role_system') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please specify at least one change')),
+        const SnackBar(content: Text('Please add at least one role permission change')),
       );
       return;
+    }
+    
+    // For non-role_system governance changes, create a generic change entry
+    if (_changes.isEmpty && widget.proposalType == 'governance_change') {
+      _changes.add(ProposalChange(
+        op: 'modify',
+        path: _amendmentTarget,
+        value: _rationaleController.text.trim(),
+      ));
     }
 
     setState(() => _isLoading = true);
