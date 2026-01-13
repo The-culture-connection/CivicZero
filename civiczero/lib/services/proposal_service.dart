@@ -246,7 +246,10 @@ class ProposalService {
   /// Start voting on a proposal (auto-push to voting)
   Future<void> startVoting(String governmentId, String proposalId, int durationHours) async {
     final now = DateTime.now();
-    final votingEnds = now.add(Duration(hours: durationHours));
+    // If durationHours is 0, use 30 seconds for testing
+    final votingEnds = durationHours == 0 
+        ? now.add(const Duration(seconds: 30))
+        : now.add(Duration(hours: durationHours));
     
     await _firestore
         .collection('Governments')

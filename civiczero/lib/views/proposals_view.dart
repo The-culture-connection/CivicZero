@@ -249,6 +249,8 @@ class _ProposalsViewState extends State<ProposalsView> with SingleTickerProvider
                     _buildVoteCount(Icons.thumb_up, proposal.votesFor, Colors.green),
                     const SizedBox(width: 12),
                     _buildVoteCount(Icons.thumb_down, proposal.votesAgainst, Colors.red),
+                    const SizedBox(width: 12),
+                    _buildCountdown(proposal),
                   ],
                 ],
               ),
@@ -270,6 +272,77 @@ class _ProposalsViewState extends State<ProposalsView> with SingleTickerProvider
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
         ),
       ],
+    );
+  }
+
+  Widget _buildCountdown(ProposalModel proposal) {
+    if (proposal.votingEnds == null) return const SizedBox.shrink();
+    
+    return StreamBuilder(
+      stream: Stream.periodic(const Duration(seconds: 1)),
+      builder: (context, snapshot) {
+        final now = DateTime.now();
+        final timeLeft = proposal.votingEnds!.difference(now);
+        
+        if (timeLeft.isNegative) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.red.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.timer_off, size: 14, color: Colors.red),
+                SizedBox(width: 4),
+                Text('Ended', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          );
+        }
+        
+        final hours = timeLeft.inHours;
+        final minutes = timeLeft.inMinutes % 60;
+        final seconds = timeLeft.inSeconds % 60;
+        
+        String timeText;
+        Color bgColor;
+        
+        if (hours > 0) {
+          timeText = '${hours}h ${minutes}m';
+          bgColor = Colors.blue.shade100;
+        } else if (minutes > 0) {
+          timeText = '${minutes}m ${seconds}s';
+          bgColor = timeLeft.inMinutes < 5 ? Colors.orange.shade100 : Colors.blue.shade100;
+        } else {
+          timeText = '${seconds}s';
+          bgColor = Colors.red.shade100;
+        }
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.timer,
+                size: 14,
+                color: timeLeft.inMinutes < 5 ? Colors.orange : Colors.blue,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                timeText,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

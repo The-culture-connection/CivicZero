@@ -38,7 +38,8 @@ class _ProposeAmendmentViewState extends State<ProposeAmendmentView> {
   final _titleController = TextEditingController();
   final _rationaleController = TextEditingController();
   final List<ProposalChange> _changes = [];
-  int _voteDurationHours = 48; // Default 48 hours
+  int _voteDurationHours = 0; // 0 = 30 seconds (for testing)
+  final _customDurationController = TextEditingController();
   
   // For structured changes
   String? _selectedRole;
@@ -50,6 +51,7 @@ class _ProposeAmendmentViewState extends State<ProposeAmendmentView> {
     _pageController.dispose();
     _titleController.dispose();
     _rationaleController.dispose();
+    _customDurationController.dispose();
     super.dispose();
   }
 
@@ -136,7 +138,11 @@ class _ProposeAmendmentViewState extends State<ProposeAmendmentView> {
       );
       
       // Auto-push to voting (skip debate for now)
-      await _proposalService.startVoting(widget.government.id, proposalId, _voteDurationHours);
+      final voteDuration = _voteDurationHours == -1 
+          ? int.tryParse(_customDurationController.text) ?? 48 
+          : _voteDurationHours;
+      
+      await _proposalService.startVoting(widget.government.id, proposalId, voteDuration);
 
       if (mounted) {
         Navigator.pop(context, true);
@@ -393,15 +399,32 @@ class _ProposeAmendmentViewState extends State<ProposeAmendmentView> {
                           value: _voteDurationHours,
                           isExpanded: true,
                           items: const [
+                            DropdownMenuItem(value: 0, child: Text('30 seconds (testing)')),
                             DropdownMenuItem(value: 6, child: Text('6 hours')),
                             DropdownMenuItem(value: 12, child: Text('12 hours')),
                             DropdownMenuItem(value: 24, child: Text('24 hours (1 day)')),
                             DropdownMenuItem(value: 48, child: Text('48 hours (2 days)')),
                             DropdownMenuItem(value: 72, child: Text('72 hours (3 days)')),
                             DropdownMenuItem(value: 168, child: Text('1 week')),
+                            DropdownMenuItem(value: -1, child: Text('Custom')),
                           ],
                           onChanged: (val) => setState(() => _voteDurationHours = val!),
                         ),
+                      ),
+                    ],
+                  ),
+                  if (_voteDurationHours == -1) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _customDurationController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Custom Duration (hours)',
+                        border: OutlineInputBorder(),
+                        hintText: 'Enter hours',
+                      ),
+                    ),
+                  ],
                       ),
                     ],
                   ),
