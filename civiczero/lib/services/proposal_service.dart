@@ -18,6 +18,7 @@ class ProposalService {
     required String rationale,
     required List<ProposalChange> changes,
     required Map<String, dynamic> sopSnapshot,
+    int voteDurationHours = 48,
   }) async {
     try {
       final proposal = ProposalModel(
@@ -33,6 +34,7 @@ class ProposalService {
         rationale: rationale,
         changes: changes,
         sopSnapshot: sopSnapshot,
+        voteDurationHours: voteDurationHours,
       );
 
       final docRef = await _firestore
@@ -237,6 +239,24 @@ class ProposalService {
         .doc(proposalId)
         .update({
       'status': newStatus,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Start voting on a proposal (auto-push to voting)
+  Future<void> startVoting(String governmentId, String proposalId, int durationHours) async {
+    final now = DateTime.now();
+    final votingEnds = now.add(Duration(hours: durationHours));
+    
+    await _firestore
+        .collection('Governments')
+        .doc(governmentId)
+        .collection('proposals')
+        .doc(proposalId)
+        .update({
+      'status': 'voting',
+      'votingStarted': Timestamp.fromDate(now),
+      'votingEnds': Timestamp.fromDate(votingEnds),
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }

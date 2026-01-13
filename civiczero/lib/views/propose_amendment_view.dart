@@ -38,6 +38,7 @@ class _ProposeAmendmentViewState extends State<ProposeAmendmentView> {
   final _titleController = TextEditingController();
   final _rationaleController = TextEditingController();
   final List<ProposalChange> _changes = [];
+  int _voteDurationHours = 48; // Default 48 hours
   
   // For structured changes
   String? _selectedRole;
@@ -121,7 +122,7 @@ class _ProposeAmendmentViewState extends State<ProposeAmendmentView> {
 
       final sop = widget.government.lawmakingSOP[widget.proposalType] ?? {};
 
-      await _proposalService.createProposal(
+      final proposalId = await _proposalService.createProposal(
         governmentId: widget.government.id,
         creatorUid: uid, // UID = AUTHORITY
         creatorUsername: username, // Username = DISPLAY
@@ -131,7 +132,11 @@ class _ProposeAmendmentViewState extends State<ProposeAmendmentView> {
         rationale: _rationaleController.text.trim(),
         changes: _changes,
         sopSnapshot: sop,
+        voteDurationHours: _voteDurationHours,
       );
+      
+      // Auto-push to voting (skip debate for now)
+      await _proposalService.startVoting(widget.government.id, proposalId, _voteDurationHours);
 
       if (mounted) {
         Navigator.pop(context, true);
@@ -363,6 +368,45 @@ class _ProposeAmendmentViewState extends State<ProposeAmendmentView> {
               labelText: 'Rationale (Why this change?)',
               border: OutlineInputBorder(),
               hintText: 'Explain the reasoning behind this amendment...',
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Vote Duration
+          Card(
+            color: Colors.blue.shade50,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Voting Duration',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Text('Vote open for:'),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DropdownButton<int>(
+                          value: _voteDurationHours,
+                          isExpanded: true,
+                          items: const [
+                            DropdownMenuItem(value: 6, child: Text('6 hours')),
+                            DropdownMenuItem(value: 12, child: Text('12 hours')),
+                            DropdownMenuItem(value: 24, child: Text('24 hours (1 day)')),
+                            DropdownMenuItem(value: 48, child: Text('48 hours (2 days)')),
+                            DropdownMenuItem(value: 72, child: Text('72 hours (3 days)')),
+                            DropdownMenuItem(value: 168, child: Text('1 week')),
+                          ],
+                          onChanged: (val) => setState(() => _voteDurationHours = val!),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 24),

@@ -4,6 +4,8 @@ import 'package:civiczero/models/proposal_model.dart';
 import 'package:civiczero/models/government_model.dart';
 import 'package:civiczero/services/proposal_service.dart';
 import 'package:civiczero/services/auth_service.dart';
+import 'package:civiczero/services/government_service.dart';
+import 'package:civiczero/services/role_service.dart';
 
 class ProposalsView extends StatefulWidget {
   final GovernmentModel government;
@@ -18,6 +20,8 @@ class _ProposalsViewState extends State<ProposalsView> with SingleTickerProvider
   late TabController _tabController;
   final ProposalService _proposalService = ProposalService();
   final AuthService _authService = AuthService();
+  final GovernmentService _governmentService = GovernmentService();
+  final RoleService _roleService = RoleService();
 
   @override
   void initState() {
@@ -302,17 +306,196 @@ class _ProposalsViewState extends State<ProposalsView> with SingleTickerProvider
                 Text('For: ${proposal.votesFor}'),
                 Text('Against: ${proposal.votesAgainst}'),
                 Text('Abstain: ${proposal.votesAbstain}'),
+                const SizedBox(height: 16),
+                _buildVotingButtons(proposal),
               ],
             ],
           ),
         ),
         actions: [
           TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+        if (proposal.status == 'voting')
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showVotingSheet(proposal);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryDark,
+            ),
+            child: const Text('Vote'),
+          ),
+      ],
+    ),
+  );
+}
+
+Widget _buildVotingButtons(ProposalModel proposal) {
+  return FutureBuilder<bool>(
+    future: _proposalService.hasVoted(
+      widget.government.id,
+      proposal.id,
+      _authService.currentUser!.uid,
+    ),
+    builder: (context, snapshot) {
+      if (snapshot.data == true) {
+        return Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.green.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 16),
+              SizedBox(width: 8),
+              Text('You have voted', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+        );
+      }
+
+      return ElevatedButton.icon(
+        onPressed: () => _showVotingSheet(proposal),
+        icon: const Icon(Icons.how_to_vote),
+        label: const Text('Cast Your Vote'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryDark,
+        ),
+      );
+    },
+  );
+}
+
+void _showVotingSheet(ProposalModel proposal) async {
+  // Check if user can vote
+  final uid = _authService.currentUser?.uid;
+  if (uid == null) return;
+  
+  final member = await _governmentService.getMember(widget.government.id, uid);
+  final canVote = _roleService.canPerform(
+    member: member,
+    government: widget.government,
+    action: 'vote',
+  );
+  
+  if (!canVote) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('You do not have voting permissions'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+  
+  // Check if already voted
+  final hasVoted = await _proposalService.hasVoted(
+    widget.government.id,
+    proposal.id,
+    uid,
+  );
+  
+  if (hasVoted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('You have already voted on this proposal')),
+    );
+    return;
+  }
+
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) => Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Cast Your Vote',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            proposal.title,
+            style: const TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+          const SizedBox(height: 24),
+          _buildVoteButton('Vote For', Icons.thumb_up, Colors.green, 'for', proposal),
+          const SizedBox(height: 12),
+          _buildVoteButton('Vote Against', Icons.thumb_down, Colors.red, 'against', proposal),
+          const SizedBox(height: 12),
+          _buildVoteButton('Abstain', Icons.remove_circle_outline, Colors.grey, 'abstain', proposal),
+          const SizedBox(height: 24),
+          TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const Text('Cancel'),
           ),
         ],
       ),
+    ),
+  );
+}
+
+Widget _buildVoteButton(String label, IconData icon, Color color, String choice, ProposalModel proposal) {
+  return SizedBox(
+    width: double.infinity,
+    height: 56,
+    child: ElevatedButton.icon(
+      onPressed: () => _castVote(proposal, choice),
+      icon: Icon(icon),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+  );
+}
+
+Future<void> _castVote(ProposalModel proposal, String choice) async {
+  final uid = _authService.currentUser!.uid;
+  final userData = await _authService.getUserData(uid);
+  final username = userData?.username ?? 'Unknown';
+  
+  try {
+    await _proposalService.castVote(
+      governmentId: widget.government.id,
+      proposalId: proposal.id,
+      voterUid: uid, // UID = AUTHORITY
+      voterUsername: username, // Username = DISPLAY
+      choice: choice,
     );
+    
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Vote cast: $choice'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to vote: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
+}
+}
 }

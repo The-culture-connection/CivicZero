@@ -592,7 +592,14 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
     );
   }
 
-  Widget _buildSection(String title, List<Widget> children) {
+  Widget _buildSection(String title, List<Widget> children, {String? editTarget}) {
+    // Check if user can propose amendments
+    final canPropose = _roleService.canPerform(
+      member: _currentMember,
+      government: widget.government,
+      action: 'propose_laws',
+    );
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -614,13 +621,31 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
+                if (editTarget != null && canPropose)
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    tooltip: 'Propose amendment',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProposeAmendmentView(
+                            government: widget.government,
+                            proposalType: 'governance_change',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
               ],
             ),
             const SizedBox(height: 16),
@@ -854,18 +879,26 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Actions',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            ...actions.map((section) {
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Actions',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 24),
+                ...actions.map((section) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -912,7 +945,9 @@ class _GovernmentDetailViewState extends State<GovernmentDetailView> {
                 ],
               );
             }).toList(),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );

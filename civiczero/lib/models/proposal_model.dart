@@ -27,6 +27,7 @@ class ProposalModel {
   final int votesAbstain;
   final DateTime? votingStarted;
   final DateTime? votingEnds;
+  final int voteDurationHours; // How long voting is open
   
   // Execution
   final DateTime? executedAt;
@@ -51,6 +52,7 @@ class ProposalModel {
     this.votesAbstain = 0,
     this.votingStarted,
     this.votingEnds,
+    this.voteDurationHours = 48, // Default 48 hours
     this.executedAt,
     this.executedBy,
   });
@@ -77,6 +79,7 @@ class ProposalModel {
       votesAbstain: json['votesAbstain'] as int? ?? 0,
       votingStarted: json['votingStarted'] != null ? (json['votingStarted'] as Timestamp).toDate() : null,
       votingEnds: json['votingEnds'] != null ? (json['votingEnds'] as Timestamp).toDate() : null,
+      voteDurationHours: json['voteDurationHours'] as int? ?? 48,
       executedAt: json['executedAt'] != null ? (json['executedAt'] as Timestamp).toDate() : null,
       executedBy: json['executedBy'] as String?,
     );
@@ -108,6 +111,7 @@ class ProposalModel {
       'votesAbstain': votesAbstain,
       'votingStarted': votingStartedValue != null ? Timestamp.fromDate(votingStartedValue) : null,
       'votingEnds': votingEndsValue != null ? Timestamp.fromDate(votingEndsValue) : null,
+      'voteDurationHours': voteDurationHours,
       'executedAt': executedAtValue != null ? Timestamp.fromDate(executedAtValue) : null,
       'executedBy': executedBy,
     };
