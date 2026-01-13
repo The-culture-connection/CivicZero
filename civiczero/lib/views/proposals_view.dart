@@ -498,4 +498,3 @@ Future<void> _castVote(ProposalModel proposal, String choice) async {
   }
 }
 }
-}
